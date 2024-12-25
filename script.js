@@ -24,7 +24,6 @@ window.addEventListener("DOMContentLoaded", () => {
   const muteBtn = document.getElementById("muteBtn");
   const leaveBtn = document.getElementById("leaveBtn");
 
-  const participantsContainer = document.getElementById("participants");
   const videoGrid = document.getElementById("videoGrid");
 
   // Parse ?room= from URL
@@ -135,9 +134,6 @@ window.addEventListener("DOMContentLoaded", () => {
         localVideo.srcObject = localStream;
         localVideo.style.display = "block"; // Show video
         localPoster.style.display = "none"; // Hide placeholder
-
-        // Automatically show local video
-        // localVideo.play(); // Uncomment if needed
       }
     } catch (err) {
       console.warn("Camera/Microphone access denied or not available:", err);
@@ -226,7 +222,7 @@ window.addEventListener("DOMContentLoaded", () => {
         console.log(`Displaying placeholder for peer: ${call.peer}`);
       }
 
-      participantsContainer.appendChild(participantDiv);
+      videoGrid.appendChild(participantDiv);
     });
 
     call.on("close", () => {
@@ -249,11 +245,11 @@ window.addEventListener("DOMContentLoaded", () => {
     console.log("Removing participant with peer ID:", peerId);
 
     // Find the participant's container
-    const participantDiv = participantsContainer.querySelector(
+    const participantDiv = videoGrid.querySelector(
       `[data-peer-id="${peerId}"]`
     );
     if (participantDiv) {
-      participantsContainer.removeChild(participantDiv);
+      videoGrid.removeChild(participantDiv);
       console.log(`Removed participant UI for peer ID: ${peerId}`);
     } else {
       console.warn(`No participant UI found for peer ID: ${peerId}`);
@@ -282,9 +278,10 @@ window.addEventListener("DOMContentLoaded", () => {
   /************************************************
    * Start Camera Button Click Handler
    ************************************************/
-  startCameraBtn.onclick = async () => {
+  startCameraBtn.onclick = () => {
     try {
       console.log("User clicked 'Toggle Camera'.");
+
       if (!localStream) {
         alert("No media stream available.");
         console.warn("Toggle Camera attempted without localStream.");
