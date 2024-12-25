@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>QuickMeet - Google Meet Style</title>
 
-    <!-- Font Awesome via CDN (no integrity to avoid invalid digest error) -->
+    <!-- Font Awesome via CDN (no integrity) -->
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
@@ -22,7 +22,7 @@
       <div class="meeting-info" id="meetingInfoBar" style="display: none">
         <span id="meetingLinkLabel">Meeting Link:</span>
         <span id="meetingLink" class="meeting-link"></span>
-        <button id="copyLinkBtn" class="icon-button">
+        <button id="copyLinkBtn" class="icon-button" title="Copy Link">
           <i class="fas fa-copy"></i>
         </button>
       </div>
@@ -30,30 +30,30 @@
 
     <!-- MAIN CONTENT -->
     <main>
-      <!-- LOBBY: Start or Join a Meeting -->
+      <!-- LOBBY SECTION -->
       <div id="lobbySection" class="lobby">
         <h1>Start or Join a Meeting</h1>
         <button id="startMeetingBtn" class="primary-btn">
           <i class="fas fa-video"></i> Start Meeting
         </button>
         <p class="note">
-          If someone sent you a meeting link (<em
-            ><strong>?room=meeting-12345</strong></em
-          >), just open it in your browser to join automatically.
+          If someone sent you a meeting link (e.g.
+          <strong>?room=meeting-12345</strong>), simply open it in your browser
+          to join automatically.
         </p>
       </div>
 
-      <!-- MEETING AREA (hidden initially) -->
+      <!-- MEETING SECTION (hidden initially) -->
       <div id="meetingSection" class="meeting-section" style="display: none">
         <div class="video-grid">
           <!-- Local user block -->
           <div class="video-container" id="localBlock">
-            <!-- Poster if no camera -->
+            <!-- Poster (placeholder) if no camera -->
             <div id="localPoster" class="poster"></div>
-            <!-- Actual video -->
+            <!-- Actual video if camera enabled -->
             <video id="localVideo" autoplay muted playsinline></video>
           </div>
-          <!-- Remote participants injected here -->
+          <!-- Remote participants appended here -->
           <div id="participants"></div>
         </div>
 
@@ -62,7 +62,7 @@
           <button id="startCameraBtn" class="control-btn" title="Enable Camera">
             <i class="fas fa-camera"></i>
           </button>
-          <button id="muteBtn" class="control-btn" title="Mute / Unmute">
+          <button id="muteBtn" class="control-btn" title="Mute/Unmute">
             <i class="fas fa-microphone"></i>
           </button>
           <button
@@ -79,7 +79,7 @@
     <!-- PeerJS Library -->
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
 
-    <!-- Load our script AFTER the DOM is fully parsed -->
+    <!-- Load our script AFTER the DOM is parsed -->
     <script src="script.js" defer></script>
   </body>
 </html>

@@ -1,11 +1,10 @@
 /************************************************
  * QuickMeet - Google Meet Style
  *   - On "Start Meeting", auto-join an empty call
- *   - A link is generated and displayed in the top bar
- *   - Others can join by visiting ?room= that link
+ *   - URL automatically changes to ?room=XYZ
+ *   - Others who visit that link join the same room
  *   - Optional camera, placeholders, mute, leave
  ************************************************/
-
 window.addEventListener("DOMContentLoaded", () => {
   // DOM Refs
   const startMeetingBtn = document.getElementById("startMeetingBtn");
@@ -25,30 +24,31 @@ window.addEventListener("DOMContentLoaded", () => {
 
   const participantsContainer = document.getElementById("participants");
 
+  // Parse ?room= from URL
   const urlParams = new URLSearchParams(window.location.search);
   const roomIdParam = urlParams.get("room");
 
+  // State
   let peer; // Our PeerJS instance
   let localStream = null;
-  let activeCalls = []; // multi-party tracking
+  let activeCalls = []; // multi-party calls
   let isHost = false;
   let currentRoomId = null;
 
   /************************************************
-   * If ?room=someId => auto-join that room
+   * If we detect ?room=someId => auto-join
    ************************************************/
   if (roomIdParam) {
-    // Join as participant
-    currentRoomId = roomIdParam;
     isHost = false;
-    initializePeer(); // random ID
+    currentRoomId = roomIdParam;
+    initializePeer(); // random ID for participant
   } else {
-    // Show the lobby until user clicks "Start Meeting"
+    // Show the lobby by default
     lobbySection.style.display = "block";
   }
 
   /************************************************
-   * "Start Meeting" -> host generates meeting-XXXX
+   * "Start Meeting" => we become the host with an ID
    ************************************************/
   startMeetingBtn.onclick = () => {
     isHost = true;
@@ -64,18 +64,29 @@ window.addEventListener("DOMContentLoaded", () => {
 
     peer.on("open", (id) => {
       console.log("Peer open with ID:", id);
+
+      // If host: update the browser URL to ?room=id
+      if (isHost) {
+        // use history.replaceState or pushState to modify the URL
+        const newURL = `${location.origin}${
+          location.pathname
+        }?room=${encodeURIComponent(id)}`;
+        history.replaceState({}, "", newURL);
+      }
+
       // Show meeting UI
       showMeetingUI();
 
       if (isHost) {
-        const link = `${location.origin}${
-          location.pathname
-        }?room=${encodeURIComponent(id)}`;
+        // Display the meeting link in the top bar
+        const link = window.location.href; // after replacing state, this is the new ?room= link
         meetingLinkSpan.textContent = link;
         meetingInfoBar.style.display = "flex";
+
+        // Show local placeholder letter
         showLocalPoster(id);
       } else {
-        // participant => call the host
+        // Participant => call the host
         setTimeout(() => callHost(currentRoomId), 1000);
       }
     });
@@ -91,11 +102,17 @@ window.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  /************************************************
+   * showMeetingUI()
+   ************************************************/
   function showMeetingUI() {
     lobbySection.style.display = "none";
     meetingSection.style.display = "block";
   }
 
+  /************************************************
+   * callHost(roomId)
+   ************************************************/
   function callHost(roomId) {
     const call = peer.call(roomId, localStream || null);
     if (!call) {
@@ -105,6 +122,9 @@ window.addEventListener("DOMContentLoaded", () => {
     handleNewCall(call);
   }
 
+  /************************************************
+   * handleNewCall(call) -> for multi-party
+   ************************************************/
   function handleNewCall(call) {
     activeCalls.push(call);
 
@@ -114,6 +134,7 @@ window.addEventListener("DOMContentLoaded", () => {
       participantDiv.classList.add("video-container");
 
       if (hasVideo) {
+        // Create video
         const remoteVideo = document.createElement("video");
         remoteVideo.autoplay = true;
         remoteVideo.playsInline = true;
@@ -122,6 +143,7 @@ window.addEventListener("DOMContentLoaded", () => {
         remoteVideo.srcObject = remoteStream;
         participantDiv.appendChild(remoteVideo);
       } else {
+        // Show placeholder letter
         const placeholder = document.createElement("div");
         placeholder.classList.add("poster");
         placeholder.style.display = "flex";
@@ -140,7 +162,11 @@ window.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  /************************************************
+   * removeParticipant(peerId)
+   ************************************************/
   function removeParticipant(peerId) {
+    // Finds placeholders or <video> with first letter == peerId[0]
     const allPosters = participantsContainer.getElementsByClassName("poster");
     for (let i = allPosters.length - 1; i >= 0; i--) {
       if (allPosters[i].textContent === peerId.charAt(0).toUpperCase()) {
@@ -153,6 +179,9 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  /************************************************
+   * showLocalPoster(id)
+   ************************************************/
   function showLocalPoster(id) {
     localPoster.textContent = id.charAt(0).toUpperCase();
     localPoster.style.display = "flex";
@@ -203,7 +232,7 @@ window.addEventListener("DOMContentLoaded", () => {
     activeCalls.forEach((c) => c.close());
     activeCalls = [];
 
-    // Destroy our peer
+    // Destroy peer
     if (peer && !peer.destroyed) {
       peer.destroy();
     }
@@ -213,7 +242,7 @@ window.addEventListener("DOMContentLoaded", () => {
       localStream.getTracks().forEach((track) => track.stop());
     }
 
-    // Return to lobby (or reload)
+    // Return to lobby or simply reload
     location.href = location.origin + location.pathname;
   };
 
