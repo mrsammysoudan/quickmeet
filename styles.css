@@ -40,10 +40,6 @@ body {
   gap: 8px;
 }
 
-#meetingLinkLabel {
-  font-weight: 500;
-}
-
 .meeting-link {
   background-color: #e8f0fe;
   color: #1a73e8;
@@ -154,14 +150,14 @@ main {
   line-height: 240px;
   text-align: center;
   font-weight: bold;
-  display: none;
+  display: none; /* hidden until needed */
 }
 
 #localVideo {
   width: 320px;
   height: 240px;
   object-fit: cover;
-  display: none;
+  display: none; /* hidden until camera is enabled */
 }
 
 /***************************************************

@@ -1,8 +1,7 @@
 /************************************************
  * QuickMeet - Google Meet Style
- *   - On "Start Meeting", auto-join an empty call
- *   - URL automatically changes to ?room=XYZ (the actual peer.id)
- *   - Others who visit that link join the same room
+ *   - Host auto-gets a PeerJS ID -> ?room=thatID
+ *   - Participants parse URL to call that host ID
  *   - Optional camera, placeholders, mute, leave
  ************************************************/
 window.addEventListener("DOMContentLoaded", () => {
@@ -28,10 +27,10 @@ window.addEventListener("DOMContentLoaded", () => {
   const urlParams = new URLSearchParams(window.location.search);
   const roomIdParam = urlParams.get("room");
 
-  // State Variables
+  // App State
   let peer; // Our PeerJS instance
   let localStream = null;
-  let activeCalls = []; // Track multiple calls in multi-party
+  let activeCalls = []; // Keep track of multiple calls
   let isHost = false;
   let currentRoomId = null;
 
@@ -39,76 +38,73 @@ window.addEventListener("DOMContentLoaded", () => {
    * Check if user is joining an existing room
    ************************************************/
   if (roomIdParam) {
-    // This user is a participant (client)
+    // This user is a participant
     isHost = false;
-    currentRoomId = roomIdParam; // We'll call this ID after peer is open
-    initializePeer(); // Let PeerJS assign random ID
+    currentRoomId = roomIdParam;
+    initializePeer(); // Random ID for participant
   } else {
-    // Show the lobby until the user clicks "Start Meeting"
+    // Show the lobby until "Start Meeting"
     lobbySection.style.display = "block";
   }
 
   /************************************************
-   * "Start Meeting" Button
+   * "Start Meeting"
    ************************************************/
   startMeetingBtn.onclick = () => {
     isHost = true;
-    initializePeer(); // Host's peer.id will be auto-generated
+    // Let PeerJS assign a real ID
+    initializePeer();
   };
 
   /************************************************
    * Initialize PeerJS
    ************************************************/
   function initializePeer() {
-    // Let PeerJS auto-generate an ID
+    // Let PeerJS auto-assign
     peer = new Peer();
 
     peer.on("open", (actualID) => {
       console.log("Peer open with ID:", actualID);
 
-      // If this user is the host, we update the URL to ?room=<actualID>
+      // If host, update the URL to ?room=<peer.id>
       if (isHost) {
         currentRoomId = actualID;
-
         const newURL = `${location.origin}${
           location.pathname
         }?room=${encodeURIComponent(actualID)}`;
-        // Replace the current history entry so the address bar changes
         history.replaceState({}, "", newURL);
 
-        // Display the meeting link in the top bar
+        // Show meeting link in top bar
         meetingLinkSpan.textContent = newURL;
         meetingInfoBar.style.display = "flex";
 
-        // Show local placeholder letter
-        showPlaceholder(actualID);
+        // Show placeholder letter for local user
+        showLocalPlaceholder();
       }
 
-      // Display the meeting UI
+      // Show meeting UI
       showMeetingUI();
 
-      // If participant: we have currentRoomId from the URL, call the host now
+      // If participant, call the host
       if (!isHost && currentRoomId) {
         callHost(currentRoomId);
       }
     });
 
-    // Host/Participant listens for incoming calls
+    // Listen for incoming calls
     peer.on("call", (incomingCall) => {
-      // Answer with localStream or null if camera not started
       incomingCall.answer(localStream || null);
       handleNewCall(incomingCall);
     });
 
-    // Catch PeerJS errors
     peer.on("error", (err) => {
       console.error("Peer error:", err);
-      alert(`PeerJS Error: ${err.type} - ${err.message}`);
+      alert(`PeerJS error: ${err.message}`);
     });
   }
 
   /************************************************
-   * Show Meeting UI
+   * showMeetingUI
    ************************************************/
   function showMeetingUI() {
     lobbySection.style.display = "none";
@@ -116,15 +112,14 @@ window.addEventListener("DOMContentLoaded", () => {
   }
 
   /************************************************
-   * callHost(hostId) - participants call the host
+   * callHost(hostId) => participant calls the host
    ************************************************/
   function callHost(hostId) {
     console.log("Attempting to call host ID:", hostId);
-
     const call = peer.call(hostId, localStream || null);
     if (!call) {
       console.warn("Failed to call host with ID:", hostId);
-      alert("Failed to join the meeting. Please try again.");
+      alert("Failed to join meeting. Try again.");
       return;
     }
     handleNewCall(call);
@@ -132,30 +127,32 @@ window.addEventListener("DOMContentLoaded", () => {
 
   /************************************************
    * handleNewCall(call)
-   *   - For both host & participants
    ************************************************/
   function handleNewCall(call) {
     activeCalls.push(call);
 
     call.on("stream", (remoteStream) => {
       const hasVideo = remoteStream && remoteStream.getVideoTracks().length > 0;
+
+      // Create a container for each participant
       const participantDiv = document.createElement("div");
       participantDiv.classList.add("video-container");
 
       if (hasVideo) {
-        // Show remote video
+        // Show their video
         const remoteVideo = document.createElement("video");
         remoteVideo.autoplay = true;
         remoteVideo.playsInline = true;
         remoteVideo.srcObject = remoteStream;
         participantDiv.appendChild(remoteVideo);
       } else {
-        // Show placeholder letter
+        // No video => placeholder letter
         const placeholder = document.createElement("div");
         placeholder.classList.add("poster");
         placeholder.textContent = getRandomLetter();
         participantDiv.appendChild(placeholder);
       }
+
       participantsContainer.appendChild(participantDiv);
     });
 
@@ -174,35 +171,33 @@ window.addEventListener("DOMContentLoaded", () => {
    * removeParticipant(peerId)
    ************************************************/
   function removeParticipant(peerId) {
-    // Remove any .poster or <video> from participants whose "first letter" or
-    // streaming belongs to that peer. This is just a quick approach.
+    // Removes that participant's video or placeholder
+    // For a robust solution, store a map of peerId -> DOM element.
+    // This quick approach removes all placeholders/videos, which
+    // might remove the wrong participant if multiple share letters.
 
     const posters = participantsContainer.getElementsByClassName("poster");
-    for (let i = posters.length - 1; i >= 0; i--) {
-      // We can't easily match by peerId unless we store it explicitly.
-      // This approach may remove the wrong placeholder if multiple
-      // participants share the same letter. For a robust solution,
-      // store references in a map. For now, this is a simple approach.
-      posters[i].parentElement.remove();
+    while (posters.length) {
+      posters[0].parentElement.remove();
     }
 
     const videos = participantsContainer.getElementsByTagName("video");
-    for (let j = videos.length - 1; j >= 0; j--) {
-      videos[j].parentElement.remove();
+    while (videos.length) {
+      videos[0].parentElement.remove();
     }
   }
 
   /************************************************
-   * Show local placeholder letter
+   * showLocalPlaceholder
    ************************************************/
-  function showPlaceholder(id) {
+  function showLocalPlaceholder() {
     localPoster.textContent = getRandomLetter();
     localPoster.style.display = "flex";
     localVideo.style.display = "none";
   }
 
   /************************************************
-   * Generate a random uppercase letter
+   * getRandomLetter
    ************************************************/
   function getRandomLetter() {
     const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -219,14 +214,10 @@ window.addEventListener("DOMContentLoaded", () => {
         audio: true,
       });
 
-      // Replace placeholder with video
+      // Hide placeholder, show local video
       localPoster.style.display = "none";
       localVideo.srcObject = localStream;
       localVideo.style.display = "block";
-
-      // If we already have calls, we can add the new tracks:
-      // (Though typically they'd re-call or re-negotiate)
-      // For simplicity, we won't implement dynamic track negotiation here.
     } catch (err) {
       console.warn("Camera/mic not granted:", err);
       alert("Unable to access camera/mic. Using placeholder instead.");
@@ -234,7 +225,7 @@ window.addEventListener("DOMContentLoaded", () => {
   };
 
   /************************************************
-   * Mute/Unmute Button
+   * Mute / Unmute
    ************************************************/
   muteBtn.onclick = () => {
     if (!localStream) {
@@ -256,21 +247,21 @@ window.addEventListener("DOMContentLoaded", () => {
    * Leave Meeting
    ************************************************/
   leaveBtn.onclick = () => {
-    // Close all active calls
+    // Close all calls
     activeCalls.forEach((call) => call.close());
     activeCalls = [];
 
-    // Destroy PeerJS instance
+    // Destroy peer
     if (peer && !peer.destroyed) {
       peer.destroy();
     }
 
-    // Stop all local media tracks
+    // Stop local tracks
     if (localStream) {
       localStream.getTracks().forEach((track) => track.stop());
     }
 
-    // Reload to go back to lobby
+    // Reload page => return to lobby
     location.href = location.origin + location.pathname;
   };
 
