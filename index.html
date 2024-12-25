@@ -3,9 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>QuickMeet - Google Meet Style</title>
+    <title>QuickMeet</title>
 
-    <!-- Font Awesome (no integrity to avoid digest errors) -->
+    <!-- Font Awesome for Icons -->
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
@@ -45,9 +45,9 @@
 
       <!-- MEETING SECTION (hidden initially) -->
       <div id="meetingSection" class="meeting-section" style="display: none">
-        <div class="video-grid">
+        <div class="video-grid" id="videoGrid">
           <!-- LOCAL USER BLOCK -->
-          <div class="video-container" id="localBlock">
+          <div class="video-container" id="localBlock" data-peer-id="local">
             <!-- Placeholder (Letter) -->
             <div id="localPoster" class="poster"></div>
             <!-- Local Video (Hidden initially) -->
@@ -60,8 +60,8 @@
 
         <!-- BOTTOM CONTROLS -->
         <div class="controls-bar">
-          <button id="startCameraBtn" class="control-btn" title="Enable Camera">
-            <i class="fas fa-camera"></i>
+          <button id="startCameraBtn" class="control-btn" title="Toggle Camera">
+            <i class="fas fa-video"></i>
           </button>
           <button id="muteBtn" class="control-btn" title="Mute/Unmute">
             <i class="fas fa-microphone"></i>

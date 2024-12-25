@@ -25,6 +25,7 @@ window.addEventListener("DOMContentLoaded", () => {
   const leaveBtn = document.getElementById("leaveBtn");
 
   const participantsContainer = document.getElementById("participants");
+  const videoGrid = document.getElementById("videoGrid");
 
   // Parse ?room= from URL
   const urlParams = new URLSearchParams(window.location.search);
@@ -37,6 +38,9 @@ window.addEventListener("DOMContentLoaded", () => {
   let isHost = false; // Determine if user is host
   let currentRoomId = null; // The room ID (host's PeerJS ID)
   let hasCalledHost = false; // Flag to prevent multiple call attempts
+
+  // Track active peers to prevent duplicate video elements
+  const activePeers = {};
 
   /************************************************
    * Initialize the Application Based on URL
@@ -131,6 +135,9 @@ window.addEventListener("DOMContentLoaded", () => {
         localVideo.srcObject = localStream;
         localVideo.style.display = "block"; // Show video
         localPoster.style.display = "none"; // Hide placeholder
+
+        // Automatically show local video
+        // localVideo.play(); // Uncomment if needed
       }
     } catch (err) {
       console.warn("Camera/Microphone access denied or not available:", err);
@@ -180,7 +187,18 @@ window.addEventListener("DOMContentLoaded", () => {
    ************************************************/
   function handleIncomingCall(call) {
     console.log("Handling incoming call from:", call.peer);
+
+    // Prevent handling multiple calls from the same peer
+    if (activePeers[call.peer]) {
+      console.warn(
+        `Already connected to peer: ${call.peer}. Ignoring duplicate call.`
+      );
+      call.close();
+      return;
+    }
+
     activeCalls.push(call);
+    activePeers[call.peer] = call;
 
     call.on("stream", (remoteStream) => {
       console.log("Received remote stream from:", call.peer);
@@ -189,6 +207,7 @@ window.addEventListener("DOMContentLoaded", () => {
       // Create a container for the participant
       const participantDiv = document.createElement("div");
       participantDiv.classList.add("video-container");
+      participantDiv.setAttribute("data-peer-id", call.peer); // Assign peer ID for reference
 
       if (hasVideo) {
         // If the participant has video, display it
@@ -213,6 +232,7 @@ window.addEventListener("DOMContentLoaded", () => {
     call.on("close", () => {
       console.log("Call with peer", call.peer, "has been closed.");
       activeCalls = activeCalls.filter((c) => c !== call);
+      delete activePeers[call.peer];
       removeParticipant(call.peer);
     });
 
@@ -228,26 +248,15 @@ window.addEventListener("DOMContentLoaded", () => {
   function removeParticipant(peerId) {
     console.log("Removing participant with peer ID:", peerId);
 
-    // Remove placeholders
-    const posters = participantsContainer.getElementsByClassName("poster");
-    for (let i = posters.length - 1; i >= 0; i--) {
-      const poster = posters[i];
-      const parent = poster.parentElement;
-      if (parent) {
-        parent.remove();
-        console.log(`Removed placeholder for peer ID: ${peerId}`);
-      }
-    }
-
-    // Remove videos
-    const videos = participantsContainer.getElementsByTagName("video");
-    for (let j = videos.length - 1; j >= 0; j--) {
-      const video = videos[j];
-      const parent = video.parentElement;
-      if (parent) {
-        parent.remove();
-        console.log(`Removed video for peer ID: ${peerId}`);
-      }
+    // Find the participant's container
+    const participantDiv = participantsContainer.querySelector(
+      `[data-peer-id="${peerId}"]`
+    );
+    if (participantDiv) {
+      participantsContainer.removeChild(participantDiv);
+      console.log(`Removed participant UI for peer ID: ${peerId}`);
+    } else {
+      console.warn(`No participant UI found for peer ID: ${peerId}`);
     }
   }
 
@@ -275,67 +284,63 @@ window.addEventListener("DOMContentLoaded", () => {
    ************************************************/
   startCameraBtn.onclick = async () => {
     try {
-      console.log(
-        "User clicked 'Start Camera'. Requesting camera permissions."
-      );
-      // Request camera and microphone permissions
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user" },
-        audio: true,
+      console.log("User clicked 'Toggle Camera'.");
+      if (!localStream) {
+        alert("No media stream available.");
+        console.warn("Toggle Camera attempted without localStream.");
+        return;
+      }
+
+      const videoTracks = localStream.getVideoTracks();
+      if (videoTracks.length === 0) {
+        alert("No video track available.");
+        console.warn("Toggle Camera attempted without video tracks.");
+        return;
+      }
+
+      const videoTrack = videoTracks[0];
+      videoTrack.enabled = !videoTrack.enabled;
+      console.log(`Video track enabled state set to: ${videoTrack.enabled}`);
+
+      // Update the camera button icon based on the current state
+      if (videoTrack.enabled) {
+        startCameraBtn.innerHTML = '<i class="fas fa-video"></i>'; // Video On Icon
+        console.log("Camera enabled.");
+      } else {
+        startCameraBtn.innerHTML = '<i class="fas fa-video-slash"></i>'; // Video Off Icon
+        console.log("Camera disabled.");
+      }
+
+      // Update all active calls with the toggled video track
+      activeCalls.forEach((call) => {
+        call.peerConnection.getSenders().forEach((sender) => {
+          if (sender.track && sender.track.kind === "video") {
+            if (videoTrack.enabled) {
+              sender.replaceTrack(videoTrack);
+              console.log(
+                `Replaced video track for call with peer: ${call.peer}`
+              );
+            } else {
+              sender.replaceTrack(null);
+              console.log(
+                `Removed video track for call with peer: ${call.peer}`
+              );
+            }
+          }
+        });
       });
 
-      console.log("Camera and microphone permissions granted.");
-
-      // If we already have a localStream, add the new video track
-      if (localStream) {
-        const videoTrack = stream.getVideoTracks()[0];
-        if (videoTrack) {
-          localStream.addTrack(videoTrack);
-          console.log("Added new video track to localStream.");
-
-          // Update the local video element to show the stream
-          localVideo.srcObject = localStream;
-          localVideo.style.display = "block"; // Show video
-          localPoster.style.display = "none"; // Hide placeholder
-
-          // Update all active calls with the new stream
-          activeCalls.forEach((call) => {
-            call.peerConnection.getSenders().forEach((sender) => {
-              if (sender.track.kind === "video") {
-                sender.replaceTrack(videoTrack);
-                console.log(
-                  `Replaced video track for call with peer: ${call.peer}`
-                );
-              }
-            });
-          });
-        }
-      } else {
-        // If localStream was null, set it to the new stream
-        localStream = stream;
-        localVideo.srcObject = localStream;
+      // Show or hide the local video based on the track state
+      if (videoTrack.enabled) {
         localVideo.style.display = "block"; // Show video
         localPoster.style.display = "none"; // Hide placeholder
-
-        console.log("Set localStream with new media stream.");
-
-        // If participant, ensure the host is called with the updated stream
-        if (!isHost && currentRoomId) {
-          console.log(
-            "Participant has updated localStream. Attempting to call host again."
-          );
-          if (!hasCalledHost) {
-            callHost(currentRoomId);
-            hasCalledHost = true;
-          }
-        }
+      } else {
+        localVideo.style.display = "none"; // Hide video
+        showLocalPlaceholder(); // Show placeholder
       }
     } catch (err) {
-      console.warn("Unable to access camera/mic:", err);
-      alert("Unable to access camera/mic. You can continue with audio only.");
-
-      // Show placeholder since no video is available
-      showLocalPlaceholder();
+      console.warn("Error toggling camera:", err);
+      alert("Unable to toggle camera.");
     }
   };
 
@@ -362,10 +367,10 @@ window.addEventListener("DOMContentLoaded", () => {
 
     // Update the mute button icon based on the current state
     if (audioTracks[0].enabled) {
-      muteBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+      muteBtn.innerHTML = '<i class="fas fa-microphone"></i>'; // Microphone On Icon
       console.log("Microphone unmuted.");
     } else {
-      muteBtn.innerHTML = '<i class="fas fa-microphone-slash"></i>';
+      muteBtn.innerHTML = '<i class="fas fa-microphone-slash"></i>'; // Microphone Off Icon
       console.log("Microphone muted.");
     }
   };
@@ -382,6 +387,7 @@ window.addEventListener("DOMContentLoaded", () => {
       call.close();
     });
     activeCalls = [];
+    Object.keys(activePeers).forEach((peerId) => delete activePeers[peerId]);
 
     // Destroy PeerJS instance
     if (peer && !peer.destroyed) {
