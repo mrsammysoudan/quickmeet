@@ -142,6 +142,7 @@ main {
   background-color: #000;
   border-radius: 8px;
   overflow: hidden;
+  margin: 0 auto;
 }
 
 .poster {
