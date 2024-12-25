@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>QuickMeet</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <h1>QuickMeet</h1>
+      <div id="videos">
+        <video id="localVideo" autoplay muted></video>
+        <video id="remoteVideo" autoplay></video>
+      </div>
+      <div id="controls">
+        <button id="startButton">Start Your Camera</button>
+        <p>Your ID: <span id="my-id">...</span></p>
+        <input type="text" id="friend-id" placeholder="Enter Friend's ID" />
+        <button id="callButton">Call Friend</button>
+      </div>
+    </div>
+
+    <!-- PeerJS Library -->
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>
