@@ -36,6 +36,7 @@ window.addEventListener("DOMContentLoaded", () => {
   let activeCalls = []; // Keep track of active calls
   let isHost = false; // Determine if user is host
   let currentRoomId = null; // The room ID (host's PeerJS ID)
+  let hasCalledHost = false; // Flag to prevent multiple call attempts
 
   /************************************************
    * Initialize the Application Based on URL
@@ -142,9 +143,10 @@ window.addEventListener("DOMContentLoaded", () => {
     }
 
     // If the user is a participant and has a room ID, attempt to call the host after media permissions are handled
-    if (!isHost && currentRoomId) {
+    if (!isHost && currentRoomId && !hasCalledHost) {
       console.log("Participant attempting to call host ID:", currentRoomId);
       callHost(currentRoomId);
+      hasCalledHost = true; // Prevent multiple call attempts
     }
   }
 
@@ -322,7 +324,10 @@ window.addEventListener("DOMContentLoaded", () => {
           console.log(
             "Participant has updated localStream. Attempting to call host again."
           );
-          callHost(currentRoomId);
+          if (!hasCalledHost) {
+            callHost(currentRoomId);
+            hasCalledHost = true;
+          }
         }
       }
     } catch (err) {

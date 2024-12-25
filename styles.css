@@ -124,40 +124,42 @@ main {
  * VIDEO GRID
  ****************************************************/
 .video-grid {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 16px;
   width: 100%;
 }
 
 .video-container {
   position: relative;
-  width: 320px;
-  max-width: calc(100% - 20px);
   background-color: #000;
   border-radius: 8px;
   overflow: hidden;
-  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .poster {
-  width: 320px;
-  height: 240px;
+  width: 100%;
+  height: 0;
+  padding-bottom: 75%; /* 4:3 Aspect Ratio */
   background-color: #dadce0;
   color: #5f6368;
   font-size: 100px;
-  line-height: 240px;
   text-align: center;
   font-weight: bold;
-  display: none; /* hidden until needed */
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-#localVideo {
-  width: 320px;
-  height: 240px;
+#localVideo,
+.video-container video {
+  width: 100%;
+  height: 100%;
   object-fit: cover;
-  display: none; /* hidden until camera is enabled */
+  display: none; /* Hidden until camera is enabled */
 }
 
 /***************************************************
@@ -200,13 +202,22 @@ main {
 /***************************************************
  * RESPONSIVE
  ****************************************************/
-@media (max-width: 600px) {
-  .video-container {
-    width: 100%;
+@media (max-width: 900px) {
+  .video-grid {
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
   }
+}
+
+@media (max-width: 600px) {
+  .video-grid {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  }
+
+  .video-container,
   .poster,
   #localVideo {
     width: 100%;
     height: auto;
+    padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
   }
 }
