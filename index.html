@@ -2,19 +2,29 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <!-- Makes the page scale correctly on mobile devices -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>QuickMeet</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <div class="container">
       <h1>QuickMeet</h1>
+
+      <!-- Optional placeholders if you want a fallback avatar -->
+      <!-- <div id="localPlaceholder" class="placeholder"></div> -->
+      <!-- <div id="remotePlaceholder" class="placeholder"></div> -->
+
       <div id="videos">
         <video id="localVideo" autoplay muted></video>
         <video id="remoteVideo" autoplay></video>
       </div>
       <div id="controls">
         <button id="startButton">Start Your Camera</button>
-        <p>Your ID: <span id="my-id">...</span></p>
+        <p>
+          Your ID:
+          <span id="my-id">...</span>
+        </p>
         <input type="text" id="friend-id" placeholder="Enter Friend's ID" />
         <button id="callButton">Call Friend</button>
       </div>

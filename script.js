@@ -1,7 +1,7 @@
 // script.js
 
 // Initialize PeerJS with default (public) PeerServer
-// If you encounter 'TUNNEL_CONNECTION_FAILED', a firewall or network proxy might be blocking PeerJS.
+// If you encounter "TUNNEL_CONNECTION_FAILED", a firewall or network proxy might be blocking PeerJS.
 // You can try specifying a custom config or a different TURN/STUN server.
 const peer = new Peer();
 
@@ -13,9 +13,9 @@ const callButton = document.getElementById("callButton");
 const myIdDisplay = document.getElementById("my-id");
 const friendIdInput = document.getElementById("friend-id");
 
-// OPTIONAL PLACEHOLDERS (if you add them in HTML):
-// e.g., <div id="localPlaceholder" class="placeholder"></div>
-// e.g., <div id="remotePlaceholder" class="placeholder"></div>
+// OPTIONAL placeholders in case you add them to your HTML.
+// e.g. <div id="localPlaceholder" class="placeholder"></div>
+//      <div id="remotePlaceholder" class="placeholder"></div>
 const localPlaceholder = document.getElementById("localPlaceholder");
 const remotePlaceholder = document.getElementById("remotePlaceholder");
 
@@ -29,27 +29,28 @@ let localStream = null;
 peer.on("open", (id) => {
   myIdDisplay.textContent = id;
 
-  // Show first letter of Peer ID in local placeholder
+  // Show first letter of Peer ID in local placeholder if you want
   if (localPlaceholder) {
     localPlaceholder.textContent = id.charAt(0).toUpperCase();
     localPlaceholder.style.display = "block";
   }
 
   // Hide local video initially (until user starts camera)
-  if (localVideo) localVideo.style.display = "none";
+  if (localVideo) {
+    localVideo.style.display = "none";
+  }
 });
 
 /**
  * Handle incoming calls: if we haven't started our camera,
  * we'll still answer with no media (null) so the call can connect.
- * If you want at least audio, you can getUserMedia({ video: false, audio: true }) in fallback.
+ * If you want at least audio, you can do getUserMedia({ video: false, audio: true }) as a fallback.
  */
 peer.on("call", (call) => {
   // Answer the call with local stream if available, or null if camera wasn't started
   call.answer(localStream || null);
 
   call.on("stream", (remoteStream) => {
-    // Check if the remote has an actual video track
     const hasVideo = remoteStream && remoteStream.getVideoTracks().length > 0;
     if (hasVideo) {
       // Show remote video
@@ -58,12 +59,16 @@ peer.on("call", (call) => {
         remoteVideo.style.display = "block";
       }
       // Hide remote placeholder if you have one
-      if (remotePlaceholder) remotePlaceholder.style.display = "none";
+      if (remotePlaceholder) {
+        remotePlaceholder.style.display = "none";
+      }
     } else {
       // No video track from remote => show placeholder
-      if (remoteVideo) remoteVideo.style.display = "none";
+      if (remoteVideo) {
+        remoteVideo.style.display = "none";
+      }
       if (remotePlaceholder) {
-        // Optionally display the remote's first initial if desired:
+        // Optionally display the remote's first initial:
         // remotePlaceholder.textContent = call.peer.charAt(0).toUpperCase();
         remotePlaceholder.style.display = "block";
       }
@@ -71,7 +76,9 @@ peer.on("call", (call) => {
   });
 
   call.on("close", () => {
-    if (remoteVideo) remoteVideo.srcObject = null;
+    if (remoteVideo) {
+      remoteVideo.srcObject = null;
+    }
     alert("The call has ended.");
   });
 
@@ -88,10 +95,9 @@ peer.on("call", (call) => {
  */
 startButton.onclick = async () => {
   try {
-    // Request video+audio. Adjust as needed if you only want audio:
-    // navigator.mediaDevices.getUserMedia({ video: false, audio: true });
+    // Request video+audio with the front camera on mobile
     localStream = await navigator.mediaDevices.getUserMedia({
-      video: true,
+      video: { facingMode: "user" },
       audio: true,
     });
 
@@ -102,7 +108,9 @@ startButton.onclick = async () => {
     }
 
     // Hide placeholder once we have a real video feed
-    if (localPlaceholder) localPlaceholder.style.display = "none";
+    if (localPlaceholder) {
+      localPlaceholder.style.display = "none";
+    }
 
     startButton.disabled = true;
   } catch (err) {
@@ -124,7 +132,7 @@ callButton.onclick = () => {
     return;
   }
 
-  // Attempt to create the call, passing in our localStream (or null if none).
+  // Attempt to create the call, passing in localStream (or null if none).
   const call = peer.call(friendId, localStream || null);
   if (!call) {
     alert(
@@ -134,17 +142,20 @@ callButton.onclick = () => {
   }
 
   call.on("stream", (remoteStream) => {
-    // Check if the remote has a video track
     const hasVideo = remoteStream && remoteStream.getVideoTracks().length > 0;
     if (hasVideo) {
       if (remoteVideo) {
         remoteVideo.srcObject = remoteStream;
         remoteVideo.style.display = "block";
       }
-      if (remotePlaceholder) remotePlaceholder.style.display = "none";
+      if (remotePlaceholder) {
+        remotePlaceholder.style.display = "none";
+      }
     } else {
       // Show placeholder if no remote video
-      if (remoteVideo) remoteVideo.style.display = "none";
+      if (remoteVideo) {
+        remoteVideo.style.display = "none";
+      }
       if (remotePlaceholder) {
         // remotePlaceholder.textContent = call.peer.charAt(0).toUpperCase();
         remotePlaceholder.style.display = "block";
@@ -153,7 +164,9 @@ callButton.onclick = () => {
   });
 
   call.on("close", () => {
-    if (remoteVideo) remoteVideo.srcObject = null;
+    if (remoteVideo) {
+      remoteVideo.srcObject = null;
+    }
     alert("The call has ended.");
   });
 

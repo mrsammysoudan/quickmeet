@@ -1,5 +1,3 @@
-/* styles.css */
-
 body {
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   background-color: #f2f2f2;
@@ -7,6 +5,7 @@ body {
   justify-content: center;
   align-items: center;
   height: 100vh;
+  margin: 0; /* Remove default margin for better mobile display */
 }
 
 .container {
@@ -57,4 +56,45 @@ button {
 
 button:hover {
   background-color: #45a049;
+}
+
+/* OPTIONAL: If you use placeholders for no-camera users */
+.placeholder {
+  display: none;
+  width: 120px;
+  height: 120px;
+  margin: 0 auto 20px;
+  border-radius: 50%;
+  background-color: #bbb;
+  color: #fff;
+  font-size: 50px;
+  line-height: 120px;
+  text-align: center;
+  font-weight: bold;
+}
+
+/* Responsive for mobile screens */
+@media (max-width: 600px) {
+  #videos {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  video {
+    width: 90% !important;
+    margin: 10px 0;
+  }
+
+  #controls {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  #controls input,
+  #controls button {
+    width: 80%;
+    max-width: 300px;
+    margin: 8px 0;
+  }
 }
