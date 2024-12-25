@@ -4,30 +4,52 @@
     <meta charset="UTF-8" />
     <!-- Makes the page scale correctly on mobile devices -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>QuickMeet</title>
+    <title>QuickMeet - Multi-Party</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <div class="container">
       <h1>QuickMeet</h1>
 
-      <!-- Optional placeholders if you want a fallback avatar -->
-      <!-- <div id="localPlaceholder" class="placeholder"></div> -->
-      <!-- <div id="remotePlaceholder" class="placeholder"></div> -->
-
-      <div id="videos">
-        <video id="localVideo" autoplay muted></video>
-        <video id="remoteVideo" autoplay></video>
+      <!-- 
+        Local user area: 
+          - localVideoPoster displays first letter if no camera
+          - localVideo shows actual camera stream if enabled
+      -->
+      <div id="localArea">
+        <div id="localVideoPoster" class="poster"></div>
+        <video id="localVideo" autoplay muted playsinline></video>
       </div>
+
+      <!-- 
+        Main controls:
+          - Start Your Camera
+          - Mute
+          - Invite More People
+          - Display This User's ID
+          - Input + Button to Call a Single Friend ID
+      -->
       <div id="controls">
-        <button id="startButton">Start Your Camera</button>
+        <button id="startButton">Start Camera</button>
+        <button id="muteButton">Mute</button>
+        <button id="inviteButton">Invite More</button>
+
         <p>
           Your ID:
           <span id="my-id">...</span>
         </p>
+
         <input type="text" id="friend-id" placeholder="Enter Friend's ID" />
         <button id="callButton">Call Friend</button>
       </div>
+
+      <!-- 
+        Participants container:
+          - Remote participants' video elements get appended here
+          - If they have camera, you see their video
+          - If no camera, we show a placeholder letter
+      -->
+      <div id="participants"></div>
     </div>
 
     <!-- PeerJS Library -->
