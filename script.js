@@ -6,7 +6,7 @@
  *   - Optional camera, placeholders, mute, leave
  ************************************************/
 window.addEventListener("DOMContentLoaded", () => {
-  // DOM Refs
+  // DOM References
   const startMeetingBtn = document.getElementById("startMeetingBtn");
   const lobbySection = document.getElementById("lobbySection");
   const meetingSection = document.getElementById("meetingSection");
@@ -28,27 +28,28 @@ window.addEventListener("DOMContentLoaded", () => {
   const urlParams = new URLSearchParams(window.location.search);
   const roomIdParam = urlParams.get("room");
 
-  // State
+  // State Variables
   let peer; // Our PeerJS instance
   let localStream = null;
-  let activeCalls = []; // multi-party calls
+  let activeCalls = []; // Track multiple calls in multi-party
   let isHost = false;
   let currentRoomId = null;
 
   /************************************************
-   * If we detect ?room=someId => auto-join
+   * Initialize based on URL
    ************************************************/
   if (roomIdParam) {
+    // User is joining an existing meeting
     isHost = false;
     currentRoomId = roomIdParam;
-    initializePeer(); // random ID for participant
+    initializePeer(); // Random ID for participant
   } else {
-    // Show the lobby by default
+    // Show the lobby until user clicks "Start Meeting"
     lobbySection.style.display = "block";
   }
 
   /************************************************
-   * "Start Meeting" => we become the host with an ID
+   * "Start Meeting" Button Click
    ************************************************/
   startMeetingBtn.onclick = () => {
     isHost = true;
@@ -57,41 +58,40 @@ window.addEventListener("DOMContentLoaded", () => {
   };
 
   /************************************************
-   * initializePeer(customId?)
+   * Initialize PeerJS
    ************************************************/
-  function initializePeer(customId) {
+  function initializePeer(customId = null) {
     peer = customId ? new Peer(customId) : new Peer();
 
     peer.on("open", (id) => {
       console.log("Peer open with ID:", id);
 
-      // If host: update the browser URL to ?room=id
       if (isHost) {
-        // use history.replaceState or pushState to modify the URL
+        // Host: Update the URL with ?room=XYZ
         const newURL = `${location.origin}${
           location.pathname
         }?room=${encodeURIComponent(id)}`;
         history.replaceState({}, "", newURL);
-      }
 
-      // Show meeting UI
-      showMeetingUI();
-
-      if (isHost) {
-        // Display the meeting link in the top bar
-        const link = window.location.href; // after replacing state, this is the new ?room= link
-        meetingLinkSpan.textContent = link;
+        // Display the meeting link
+        meetingLinkSpan.textContent = newURL;
         meetingInfoBar.style.display = "flex";
 
         // Show local placeholder letter
-        showLocalPoster(id);
-      } else {
-        // Participant => call the host
-        setTimeout(() => callHost(currentRoomId), 1000);
+        showLocalPlaceholder(id);
+      }
+
+      // Show the meeting UI
+      showMeetingUI();
+
+      if (!isHost) {
+        // Participant: Call the host
+        callHost(currentRoomId);
       }
     });
 
     peer.on("call", (incomingCall) => {
+      // Answer with localStream (if available) or null
       incomingCall.answer(localStream || null);
       handleNewCall(incomingCall);
     });
@@ -103,7 +103,7 @@ window.addEventListener("DOMContentLoaded", () => {
   }
 
   /************************************************
-   * showMeetingUI()
+   * Show Meeting UI
    ************************************************/
   function showMeetingUI() {
     lobbySection.style.display = "none";
@@ -111,19 +111,20 @@ window.addEventListener("DOMContentLoaded", () => {
   }
 
   /************************************************
-   * callHost(roomId)
+   * Call Host (for participants)
    ************************************************/
-  function callHost(roomId) {
-    const call = peer.call(roomId, localStream || null);
+  function callHost(hostId) {
+    const call = peer.call(hostId, localStream || null);
     if (!call) {
-      console.warn("Failed to call host with room ID:", roomId);
+      console.warn("Failed to call host with room ID:", hostId);
+      alert("Failed to join the meeting. Please try again.");
       return;
     }
     handleNewCall(call);
   }
 
   /************************************************
-   * handleNewCall(call) -> for multi-party
+   * Handle New Call (Both Host and Participant)
    ************************************************/
   function handleNewCall(call) {
     activeCalls.push(call);
@@ -134,21 +135,16 @@ window.addEventListener("DOMContentLoaded", () => {
       participantDiv.classList.add("video-container");
 
       if (hasVideo) {
-        // Create video
+        // Create video element
         const remoteVideo = document.createElement("video");
         remoteVideo.autoplay = true;
         remoteVideo.playsInline = true;
-        remoteVideo.style.width = "320px";
-        remoteVideo.style.height = "240px";
         remoteVideo.srcObject = remoteStream;
         participantDiv.appendChild(remoteVideo);
       } else {
-        // Show placeholder letter
+        // Show placeholder letter (first letter of peer ID)
         const placeholder = document.createElement("div");
         placeholder.classList.add("poster");
-        placeholder.style.display = "flex";
-        placeholder.style.justifyContent = "center";
-        placeholder.style.alignItems = "center";
         placeholder.textContent = call.peer.charAt(0).toUpperCase();
         participantDiv.appendChild(placeholder);
       }
@@ -160,35 +156,45 @@ window.addEventListener("DOMContentLoaded", () => {
       activeCalls = activeCalls.filter((c) => c !== call);
       removeParticipant(call.peer);
     });
+
+    call.on("error", (err) => {
+      console.error("Call error:", err);
+      alert(`Error with call peer: ${call.peer}`);
+    });
   }
 
   /************************************************
-   * removeParticipant(peerId)
+   * Remove Participant from UI
    ************************************************/
   function removeParticipant(peerId) {
-    // Finds placeholders or <video> with first letter == peerId[0]
+    // Remove placeholder
     const allPosters = participantsContainer.getElementsByClassName("poster");
     for (let i = allPosters.length - 1; i >= 0; i--) {
       if (allPosters[i].textContent === peerId.charAt(0).toUpperCase()) {
         allPosters[i].parentElement.remove();
       }
     }
+
+    // Remove video
     const allVideos = participantsContainer.getElementsByTagName("video");
     for (let j = allVideos.length - 1; j >= 0; j--) {
+      // Assuming unique video per participant, remove by parent
       allVideos[j].parentElement.remove();
     }
   }
 
   /************************************************
-   * showLocalPoster(id)
+   * Show Local Placeholder Letter
    ************************************************/
-  function showLocalPoster(id) {
-    localPoster.textContent = id.charAt(0).toUpperCase();
+  function showLocalPlaceholder(id) {
+    const randomLetter = id.charAt(0).toUpperCase();
+    localPoster.textContent = randomLetter;
     localPoster.style.display = "flex";
+    localVideo.style.display = "none";
   }
 
   /************************************************
-   * Start Camera
+   * Start Camera Button Click
    ************************************************/
   startCameraBtn.onclick = async () => {
     try {
@@ -196,6 +202,8 @@ window.addEventListener("DOMContentLoaded", () => {
         video: { facingMode: "user" },
         audio: true,
       });
+
+      // Replace placeholder with video
       localPoster.style.display = "none";
       localVideo.srcObject = localStream;
       localVideo.style.display = "block";
@@ -206,18 +214,20 @@ window.addEventListener("DOMContentLoaded", () => {
   };
 
   /************************************************
-   * Mute
+   * Mute/Unmute Button Click
    ************************************************/
   muteBtn.onclick = () => {
     if (!localStream) {
       alert("No camera/mic to mute yet!");
       return;
     }
+
     const audioTrack = localStream.getAudioTracks()[0];
     if (!audioTrack) {
       alert("No audio track found.");
       return;
     }
+
     audioTrack.enabled = !audioTrack.enabled;
     muteBtn.innerHTML = audioTrack.enabled
       ? '<i class="fas fa-microphone"></i>'
@@ -225,33 +235,34 @@ window.addEventListener("DOMContentLoaded", () => {
   };
 
   /************************************************
-   * Leave Meeting
+   * Leave Meeting Button Click
    ************************************************/
   leaveBtn.onclick = () => {
-    // Close all calls
-    activeCalls.forEach((c) => c.close());
+    // Close all active calls
+    activeCalls.forEach((call) => call.close());
     activeCalls = [];
 
-    // Destroy peer
+    // Destroy PeerJS instance
     if (peer && !peer.destroyed) {
       peer.destroy();
     }
 
-    // Stop local tracks
+    // Stop all local media tracks
     if (localStream) {
       localStream.getTracks().forEach((track) => track.stop());
     }
 
-    // Return to lobby or simply reload
+    // Reload the page to return to lobby
     location.href = location.origin + location.pathname;
   };
 
   /************************************************
-   * Copy Link
+   * Copy Link Button Click
    ************************************************/
   copyLinkBtn.onclick = () => {
     const link = meetingLinkSpan.textContent.trim();
     if (!link) return;
+
     navigator.clipboard
       .writeText(link)
       .then(() => {
