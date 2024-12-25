@@ -34,6 +34,7 @@ window.addEventListener("DOMContentLoaded", () => {
   let activeCalls = []; // Track multiple calls in multi-party
   let isHost = false;
   let currentRoomId = null;
+  let userLetter = ""; // Random letter for placeholder
 
   /************************************************
    * Initialize based on URL
@@ -53,8 +54,8 @@ window.addEventListener("DOMContentLoaded", () => {
    ************************************************/
   startMeetingBtn.onclick = () => {
     isHost = true;
-    currentRoomId = "meeting-" + Math.floor(Math.random() * 100000);
-    initializePeer(currentRoomId);
+    // Initialize Peer without a custom ID; PeerJS assigns a unique ID
+    initializePeer();
   };
 
   /************************************************
@@ -77,8 +78,9 @@ window.addEventListener("DOMContentLoaded", () => {
         meetingLinkSpan.textContent = newURL;
         meetingInfoBar.style.display = "flex";
 
-        // Show local placeholder letter
-        showLocalPlaceholder(id);
+        // Assign a random letter for the host's placeholder
+        userLetter = getRandomLetter();
+        showPlaceholder(id);
       }
 
       // Show the meeting UI
@@ -142,10 +144,12 @@ window.addEventListener("DOMContentLoaded", () => {
         remoteVideo.srcObject = remoteStream;
         participantDiv.appendChild(remoteVideo);
       } else {
-        // Show placeholder letter (first letter of peer ID)
+        // Assign a random letter for the participant
+        const participantLetter = getRandomLetter();
+        // Show placeholder letter
         const placeholder = document.createElement("div");
         placeholder.classList.add("poster");
-        placeholder.textContent = call.peer.charAt(0).toUpperCase();
+        placeholder.textContent = participantLetter;
         participantDiv.appendChild(placeholder);
       }
 
@@ -184,13 +188,21 @@ window.addEventListener("DOMContentLoaded", () => {
   }
 
   /************************************************
-   * Show Local Placeholder Letter
+   * Show Placeholder Letter
    ************************************************/
-  function showLocalPlaceholder(id) {
-    const randomLetter = id.charAt(0).toUpperCase();
-    localPoster.textContent = randomLetter;
+  function showPlaceholder(id) {
+    userLetter = getRandomLetter();
+    localPoster.textContent = userLetter;
     localPoster.style.display = "flex";
     localVideo.style.display = "none";
+  }
+
+  /************************************************
+   * Generate a Random Uppercase Letter
+   ************************************************/
+  function getRandomLetter() {
+    const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    return letters[Math.floor(Math.random() * letters.length)];
   }
 
   /************************************************
@@ -207,6 +219,11 @@ window.addEventListener("DOMContentLoaded", () => {
       localPoster.style.display = "none";
       localVideo.srcObject = localStream;
       localVideo.style.display = "block";
+
+      // Update all active calls with the new stream
+      activeCalls.forEach((call) => {
+        call.peerConnection.addTrack(localStream.getTracks()[0], localStream);
+      });
     } catch (err) {
       console.warn("Camera/mic not granted:", err);
       alert("Unable to access camera/mic. Using placeholder instead.");
