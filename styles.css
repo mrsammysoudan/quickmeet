@@ -1,163 +1,215 @@
-/* =============== GENERAL LAYOUT =============== */
+/***************************************************
+ * GENERAL LAYOUT & RESET
+ ****************************************************/
 * {
-  box-sizing: border-box;
   margin: 0;
   padding: 0;
+  box-sizing: border-box;
 }
 
 body {
-  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-  background-color: #f2f2f2;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  font-family: "Roboto", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #f8f9fa;
+  color: #202124;
   min-height: 100vh;
-  margin: 0;
+  display: flex;
+  flex-direction: column;
 }
 
-.container {
-  background-color: #fff;
-  padding: 20px 30px;
-  border-radius: 10px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  width: 90%;
-  max-width: 700px;
-  text-align: center;
+/***************************************************
+ * TOP BAR (HEADER)
+ ****************************************************/
+.top-bar {
+  display: flex;
+  align-items: center;
+  background-color: #ffffff;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  padding: 10px 20px;
 }
 
-h1 {
-  margin-bottom: 20px;
-  color: #333;
-}
-
-#startOptions {
-  margin-bottom: 20px;
-}
-
-#startOptions button {
-  padding: 10px 16px;
-  background-color: #4caf50;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  margin: 5px;
-}
-
-#startOptions button:hover {
-  background-color: #45a049;
-}
-
-#meetingLinkContainer,
-#callFriendContainer {
-  margin-bottom: 20px;
-  font-size: 16px;
-}
-
-#meetingLink {
-  color: #4caf50;
+.brand {
+  font-size: 1.5rem;
   font-weight: bold;
+  color: #1a73e8;
+  flex: 1;
 }
 
-/* =============== LOCAL AREA =============== */
-#localArea {
+.meeting-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#meetingLinkLabel {
+  font-weight: 500;
+}
+
+.meeting-link {
+  background-color: #e8f0fe;
+  color: #1a73e8;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.icon-button {
+  border: none;
+  background-color: transparent;
+  color: #1a73e8;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+/***************************************************
+ * MAIN
+ ****************************************************/
+main {
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-bottom: 20px;
+  justify-content: center;
 }
 
-#localVideo {
-  width: 300px;
-  max-width: 100%;
-  border: 2px solid #4caf50;
-  border-radius: 8px;
-  display: none; /* hidden until camera is started */
-  margin-bottom: 10px;
-}
-
-.poster {
-  width: 300px;
-  max-width: 100%;
-  height: 225px;
-  border: 2px solid #bbb;
-  border-radius: 8px;
-  background-color: #ddd;
-  color: #333;
-  font-size: 100px;
-  line-height: 225px;
+/***************************************************
+ * LOBBY SECTION
+ ****************************************************/
+.lobby {
   text-align: center;
-  font-weight: bold;
-  display: none;
-  margin-bottom: 10px;
+  margin-top: 50px;
 }
 
-#localVideoPoster {
-  /* local user placeholder for no camera */
-}
-
-/* =============== CONTROLS =============== */
-#controls {
+.lobby h1 {
   margin-bottom: 20px;
+  font-size: 2rem;
+  color: #1a73e8;
 }
 
-#controls button {
-  padding: 8px 12px;
-  background-color: #4caf50;
-  color: white;
+.primary-btn {
+  background-color: #1a73e8;
+  color: #fff;
   border: none;
+  padding: 12px 20px;
+  font-size: 1rem;
   border-radius: 4px;
   cursor: pointer;
-  margin: 5px;
 }
 
-#controls button:hover {
-  background-color: #45a049;
+.primary-btn:hover {
+  background-color: #1765c1;
 }
 
-#controls input {
-  padding: 8px;
-  width: 180px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  margin: 5px;
+.note {
+  margin-top: 15px;
+  color: #666;
+  font-size: 0.9rem;
+  max-width: 400px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
-/* =============== PARTICIPANTS =============== */
-#participants {
+/***************************************************
+ * MEETING SECTION
+ ****************************************************/
+.meeting-section {
+  width: 100%;
+  max-width: 1200px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/***************************************************
+ * VIDEO GRID
+ ****************************************************/
+.video-grid {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 10px;
+  gap: 16px;
+  width: 100%;
 }
 
-.participant {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.participant video {
-  width: 200px;
-  border: 2px solid #2196f3;
+.video-container {
+  position: relative;
+  width: 320px;
+  max-width: calc(100% - 20px);
+  background-color: #000;
   border-radius: 8px;
-  margin-bottom: 6px;
+  overflow: hidden;
 }
 
-/* Responsive for mobile */
+.poster {
+  width: 320px;
+  height: 240px;
+  background-color: #dadce0;
+  color: #5f6368;
+  font-size: 100px;
+  line-height: 240px;
+  text-align: center;
+  font-weight: bold;
+  display: none;
+}
+
+#localVideo {
+  width: 320px;
+  height: 240px;
+  object-fit: cover;
+  display: none;
+}
+
+/***************************************************
+ * BOTTOM CONTROLS
+ ****************************************************/
+.controls-bar {
+  margin-top: 30px;
+  display: flex;
+  gap: 16px;
+}
+
+.control-btn {
+  border: none;
+  background-color: #e8eaed;
+  padding: 12px;
+  border-radius: 50%;
+  font-size: 1.2rem;
+  cursor: pointer;
+  color: #5f6368;
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.control-btn:hover {
+  background-color: #dadce0;
+}
+
+.leave-btn {
+  background-color: #ea4335;
+  color: #fff;
+}
+
+.leave-btn:hover {
+  background-color: #c62828;
+}
+
+/***************************************************
+ * RESPONSIVE
+ ****************************************************/
 @media (max-width: 600px) {
-  #localVideo,
-  .poster {
+  .video-container {
+    width: 100%;
+  }
+  .poster,
+  #localVideo {
     width: 100%;
     height: auto;
-  }
-
-  #controls input {
-    width: 100%;
-  }
-
-  .participant video {
-    width: 100%;
-    max-width: 300px;
   }
 }

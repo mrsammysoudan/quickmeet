@@ -2,64 +2,80 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <!-- Mobile-friendly scaling -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>QuickMeet - Create Meeting or Call Friend</title>
+    <title>QuickMeet - Google Meet Style</title>
+    <!-- Font Awesome Icons (CDN) -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
+      integrity="sha512-BNh7bYzNdpSnaK+UH+a9GNZJ7QSQToWAUp8VDk2nck1frk1VifNROYC12BvX/72+yuBpY40uWdf20qDUZiv7XA=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <div class="container">
-      <h1>QuickMeet</h1>
-
-      <!-- The top-level buttons: Create Meeting or Call Friend -->
-      <div id="startOptions">
-        <button id="createMeetingButton">Create Meeting</button>
-        <button id="callFriendButton">Call Friend</button>
+    <!-- HEADER BAR -->
+    <header class="top-bar">
+      <div class="brand">QuickMeet</div>
+      <div class="meeting-info" id="meetingInfoBar" style="display: none">
+        <span id="meetingLinkLabel">Meeting Link:</span>
+        <span id="meetingLink" class="meeting-link"></span>
+        <button id="copyLinkBtn" class="icon-button">
+          <i class="fas fa-copy"></i>
+        </button>
       </div>
+    </header>
 
-      <!-- Show meeting link or "Your ID" after user chooses a mode -->
-      <div id="meetingLinkContainer" style="display: none">
-        <p>
-          <strong>Meeting link:</strong>
-          <span id="meetingLink"></span>
+    <!-- MAIN CONTENT -->
+    <main>
+      <!-- "Lobby" section: button to start or parse URL param to join -->
+      <div id="lobbySection" class="lobby">
+        <h1>Start or Join a Meeting</h1>
+        <button id="startMeetingBtn" class="primary-btn">
+          <i class="fas fa-video"></i> Start Meeting
+        </button>
+        <p class="note">
+          If someone sent you a meeting link (<em
+            >like <strong>?room=meeting-12345</strong></em
+          >), just open it in your browser to join automatically.
         </p>
-        <p>Share this link. Anyone visiting it joins automatically!</p>
       </div>
 
-      <div id="callFriendContainer" style="display: none">
-        <p>Your ID: <span id="my-id">...</span></p>
-      </div>
+      <!-- VIDEO AREA -->
+      <div id="meetingSection" class="meeting-section" style="display: none">
+        <div class="video-grid">
+          <!-- Local user block -->
+          <div class="video-container" id="localBlock">
+            <!-- Placeholder for no-camera -->
+            <div id="localPoster" class="poster"></div>
+            <!-- Actual video if camera is enabled -->
+            <video id="localVideo" autoplay muted playsinline></video>
+          </div>
+          <!-- Remote participants get appended here -->
+          <div id="participants"></div>
+        </div>
 
-      <!-- 
-        Local user area:
-          - localVideoPoster => placeholder letter
-          - localVideo => actual camera feed (if enabled)
-      -->
-      <div id="localArea">
-        <div id="localVideoPoster" class="poster"></div>
-        <video id="localVideo" autoplay muted playsinline></video>
-      </div>
-
-      <!-- Main controls: Start Camera, Mute, or join/call friend -->
-      <div id="controls">
-        <button id="startButton">Start Camera</button>
-        <button id="muteButton">Mute</button>
-
-        <!-- Call a friend by ID (not needed for "Create Meeting" flow) -->
-        <div id="friendCallPanel" style="display: none">
-          <input type="text" id="friend-id" placeholder="Enter Friend's ID" />
-          <button id="callButton">Call Friend</button>
+        <!-- BOTTOM CONTROLS -->
+        <div class="controls-bar">
+          <button id="startCameraBtn" class="control-btn" title="Enable Camera">
+            <i class="fas fa-camera"></i>
+          </button>
+          <button id="muteBtn" class="control-btn" title="Mute / Unmute">
+            <i class="fas fa-microphone"></i>
+          </button>
+          <button
+            id="leaveBtn"
+            class="control-btn leave-btn"
+            title="Leave Meeting"
+          >
+            <i class="fas fa-phone-slash"></i>
+          </button>
         </div>
       </div>
+    </main>
 
-      <!-- 
-        Participants container:
-        Each remote participant gets a video or a placeholder letter
-      -->
-      <div id="participants"></div>
-    </div>
-
-    <!-- PeerJS library -->
+    <!-- PeerJS Library -->
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <script src="script.js"></script>
   </body>
