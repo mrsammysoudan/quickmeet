@@ -2,57 +2,64 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <!-- Makes the page scale correctly on mobile devices -->
+    <!-- Mobile-friendly scaling -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>QuickMeet - Multi-Party</title>
+    <title>QuickMeet - Create Meeting or Call Friend</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <div class="container">
       <h1>QuickMeet</h1>
 
+      <!-- The top-level buttons: Create Meeting or Call Friend -->
+      <div id="startOptions">
+        <button id="createMeetingButton">Create Meeting</button>
+        <button id="callFriendButton">Call Friend</button>
+      </div>
+
+      <!-- Show meeting link or "Your ID" after user chooses a mode -->
+      <div id="meetingLinkContainer" style="display: none">
+        <p>
+          <strong>Meeting link:</strong>
+          <span id="meetingLink"></span>
+        </p>
+        <p>Share this link. Anyone visiting it joins automatically!</p>
+      </div>
+
+      <div id="callFriendContainer" style="display: none">
+        <p>Your ID: <span id="my-id">...</span></p>
+      </div>
+
       <!-- 
-        Local user area: 
-          - localVideoPoster displays first letter if no camera
-          - localVideo shows actual camera stream if enabled
+        Local user area:
+          - localVideoPoster => placeholder letter
+          - localVideo => actual camera feed (if enabled)
       -->
       <div id="localArea">
         <div id="localVideoPoster" class="poster"></div>
         <video id="localVideo" autoplay muted playsinline></video>
       </div>
 
-      <!-- 
-        Main controls:
-          - Start Camera
-          - Mute
-          - Invite More People
-          - Display This User's ID
-          - Input + Button to Call a Single Friend ID
-      -->
+      <!-- Main controls: Start Camera, Mute, or join/call friend -->
       <div id="controls">
         <button id="startButton">Start Camera</button>
         <button id="muteButton">Mute</button>
-        <button id="inviteButton">Invite More</button>
 
-        <p>
-          Your ID:
-          <span id="my-id">...</span>
-        </p>
-
-        <input type="text" id="friend-id" placeholder="Enter Friend's ID" />
-        <button id="callButton">Call Friend</button>
+        <!-- Call a friend by ID (not needed for "Create Meeting" flow) -->
+        <div id="friendCallPanel" style="display: none">
+          <input type="text" id="friend-id" placeholder="Enter Friend's ID" />
+          <button id="callButton">Call Friend</button>
+        </div>
       </div>
 
       <!-- 
         Participants container:
-          - Remote participants' video elements get appended here
-          - If they have camera, you see their video
-          - If no camera, we show a placeholder letter
+        Each remote participant gets a video or a placeholder letter
       -->
       <div id="participants"></div>
     </div>
 
-    <!-- PeerJS Library -->
+    <!-- PeerJS library -->
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <script src="script.js"></script>
   </body>

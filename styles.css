@@ -12,6 +12,7 @@ body {
   justify-content: center;
   align-items: center;
   min-height: 100vh;
+  margin: 0;
 }
 
 .container {
@@ -27,6 +28,35 @@ body {
 h1 {
   margin-bottom: 20px;
   color: #333;
+}
+
+#startOptions {
+  margin-bottom: 20px;
+}
+
+#startOptions button {
+  padding: 10px 16px;
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  margin: 5px;
+}
+
+#startOptions button:hover {
+  background-color: #45a049;
+}
+
+#meetingLinkContainer,
+#callFriendContainer {
+  margin-bottom: 20px;
+  font-size: 16px;
+}
+
+#meetingLink {
+  color: #4caf50;
+  font-weight: bold;
 }
 
 /* =============== LOCAL AREA =============== */
@@ -58,7 +88,7 @@ h1 {
   line-height: 225px;
   text-align: center;
   font-weight: bold;
-  display: none; /* shown if no camera */
+  display: none;
   margin-bottom: 10px;
 }
 
@@ -71,16 +101,8 @@ h1 {
   margin-bottom: 20px;
 }
 
-#controls input {
-  padding: 8px;
-  width: 180px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  margin: 8px 5px;
-}
-
 #controls button {
-  padding: 10px 16px;
+  padding: 8px 12px;
   background-color: #4caf50;
   color: white;
   border: none;
@@ -93,9 +115,12 @@ h1 {
   background-color: #45a049;
 }
 
-#my-id {
-  font-weight: bold;
-  color: #4caf50;
+#controls input {
+  padding: 8px;
+  width: 180px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  margin: 5px;
 }
 
 /* =============== PARTICIPANTS =============== */
@@ -106,25 +131,21 @@ h1 {
   gap: 10px;
 }
 
-#participants .participant {
+.participant {
   display: inline-flex;
   flex-direction: column;
   align-items: center;
 }
 
-#participants video {
+.participant video {
   width: 200px;
   border: 2px solid #2196f3;
   border-radius: 8px;
   margin-bottom: 6px;
 }
 
-/* Media Queries for Mobile Responsiveness */
+/* Responsive for mobile */
 @media (max-width: 600px) {
-  .container {
-    padding: 10px;
-  }
-
   #localVideo,
   .poster {
     width: 100%;
@@ -135,7 +156,7 @@ h1 {
     width: 100%;
   }
 
-  #participants video {
+  .participant video {
     width: 100%;
     max-width: 300px;
   }
