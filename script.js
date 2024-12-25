@@ -1,13 +1,14 @@
 // script.js
 
 /**********************************************
- *   QuickMeet Multi-Party with Optional Camera,
- *   Mute Button, and Invite More Participants
+ *   QuickMeet Multi-Party
+ *   - Optional Camera on Both Mobile & PC
+ *   - Mute Button
+ *   - Invite More Participants
  **********************************************/
 
 // Initialize a PeerJS instance with the public PeerServer
-// If you hit issues with "TUNNEL_CONNECTION_FAILED", a firewall or proxy
-// may be blocking the connection. You could specify a custom TURN/STUN server if needed.
+// If you see "TUNNEL_CONNECTION_FAILED", your network might block the default server.
 const peer = new Peer();
 
 // DOM References
@@ -22,23 +23,23 @@ const myIdDisplay = document.getElementById("my-id");
 const friendIdInput = document.getElementById("friend-id");
 const participantsContainer = document.getElementById("participants");
 
-// We'll store localStream (if the user starts camera)
+// We'll store localStream if the user starts camera.
+// If they never do, it remains null, meaning no audio/video from this user.
 let localStream = null;
 
 // Keep track of active calls for multi-party
 let activeCalls = [];
 
 /**
- * PeerJS "open" event: the connection to the PeerServer is established,
- * we get our unique peer ID, which we display to the user.
+ * PeerJS "open" event: connection to PeerServer is established,
+ * we get our unique peer ID, displayed to the user.
  */
 peer.on("open", (id) => {
   myIdDisplay.textContent = id;
 
-  // Show placeholder letter in local video area if no camera is used
-  // In this example, we show the first letter of the ID
+  // Show placeholder letter in local video area, in case we never enable camera
   localVideoPoster.textContent = id.charAt(0).toUpperCase();
-  localVideoPoster.style.display = "flex"; // show placeholder
+  localVideoPoster.style.display = "flex"; // show big letter
 });
 
 /**
@@ -46,15 +47,15 @@ peer.on("open", (id) => {
  * each call is separate. We answer with localStream (or null).
  */
 peer.on("call", (incomingCall) => {
-  // If we haven't started camera, it's okay—answer with null
+  // If we haven't started camera/mic, that's fine—answer with null
   incomingCall.answer(localStream || null);
   handleNewCall(incomingCall);
 });
 
 /**
- * Start Camera Button
- * Requests video + audio from user (front-facing on mobile).
- * If they deny or it fails, we keep localStream = null.
+ * START CAMERA button
+ * - Tries to request camera + mic
+ * - If the user denies, localStream = null, so we remain no-media
  */
 startButton.onclick = async () => {
   try {
@@ -70,34 +71,35 @@ startButton.onclick = async () => {
 
     startButton.disabled = true;
   } catch (err) {
-    console.error("Failed to access camera/mic:", err);
+    console.warn("User denied or no camera/mic:", err);
     alert(
-      "Unable to access camera/mic. You can still join calls without video."
+      "You can still proceed without camera/mic. Calls will be no-media from your side."
     );
+    // localStream stays null -> purely text/placeholder for them
   }
 };
 
 /**
- * Mute Button
- * Toggles the first audio track in localStream if it exists.
+ * MUTE BUTTON
+ * - Toggles the local audio track if we have one
  */
 muteButton.onclick = () => {
   if (!localStream) {
-    alert("You haven't enabled your microphone/camera yet!");
+    alert("No camera/mic started yet! Can't toggle mic.");
     return;
   }
-
   const audioTrack = localStream.getAudioTracks()[0];
-  if (!audioTrack) return;
-
+  if (!audioTrack) {
+    alert("No audio track found.");
+    return;
+  }
   audioTrack.enabled = !audioTrack.enabled;
   muteButton.textContent = audioTrack.enabled ? "Mute" : "Unmute";
 };
 
 /**
- * Invite More People
- * Prompts for a friend's ID, then calls them.
- * Each new call is added to activeCalls.
+ * INVITE MORE button
+ * - Prompts for a friend's ID, calls them, adds to multi-party
  */
 inviteButton.onclick = () => {
   const newFriendId = prompt("Enter a new friend's ID to invite:");
@@ -105,59 +107,58 @@ inviteButton.onclick = () => {
 
   const newCall = peer.call(newFriendId, localStream || null);
   if (!newCall) {
-    alert("Failed to call the new friend. Check their ID or your connection.");
+    alert("Could not call the friend. Check ID or your connection.");
     return;
   }
   handleNewCall(newCall);
 };
 
 /**
- * Call Friend Button
- * Creates a call with the friend ID in the input. (Similar to Invite.)
+ * CALL FRIEND button
+ * - Same logic, uses the friend ID from input
  */
 callButton.onclick = () => {
   const friendId = friendIdInput.value.trim();
   if (!friendId) {
-    alert("Please enter your friend's ID.");
+    alert("Please enter a friend's ID.");
     return;
   }
-
   const call = peer.call(friendId, localStream || null);
   if (!call) {
-    alert("Failed to start a call. Check the ID or your connection.");
+    alert("Call failed. Check the ID or your connection.");
     return;
   }
   handleNewCall(call);
 };
 
 /**
- * Helper: handleNewCall(call)
- *  - Add call to activeCalls array
- *  - Listen for "stream" event to create a new <video> or placeholder
- *    for each participant
+ * handleNewCall(call):
+ *  - Add call to activeCalls
+ *  - Listen for 'stream' event to create video or placeholder
+ *  - Manage 'close' event to remove the participant from UI
  */
 function handleNewCall(call) {
   activeCalls.push(call);
 
   call.on("stream", (remoteStream) => {
-    // Create a new <div> to hold the remote user’s media
+    // Create container for this participant
     const participantDiv = document.createElement("div");
     participantDiv.classList.add("participant");
 
-    // Create a new video element
+    // Create a new video
     const participantVideo = document.createElement("video");
     participantVideo.autoplay = true;
     participantVideo.playsInline = true;
+    participantVideo.controls = false;
     participantVideo.style.width = "200px";
     participantVideo.style.margin = "5px";
-    participantVideo.controls = false; // we can hide native controls
 
     const hasVideo = remoteStream && remoteStream.getVideoTracks().length > 0;
     if (hasVideo) {
       participantVideo.srcObject = remoteStream;
+      participantDiv.appendChild(participantVideo);
     } else {
-      // If no video track, you can show a placeholder letter
-      // (like the local poster logic).
+      // If no video track, show a placeholder letter
       const placeholder = document.createElement("div");
       placeholder.classList.add("poster");
       placeholder.style.width = "200px";
@@ -167,7 +168,6 @@ function handleNewCall(call) {
       participantDiv.appendChild(placeholder);
     }
 
-    participantDiv.appendChild(participantVideo);
     participantsContainer.appendChild(participantDiv);
   });
 
@@ -175,18 +175,41 @@ function handleNewCall(call) {
     activeCalls = activeCalls.filter((c) => c !== call);
     alert(`Call with ${call.peer} ended.`);
 
-    // Remove that participant’s video/placeholder from DOM
-    const vids = participantsContainer.getElementsByTagName("video");
-    for (let i = vids.length - 1; i >= 0; i--) {
-      // find the video whose "srcObject" belongs to this call
-      if (vids[i].srcObject === call.remoteStream) {
-        vids[i].parentElement.remove();
-      }
-    }
+    // Remove that participant’s <video> or placeholder from DOM
+    removeParticipantFromDOM(call.peer);
   });
 
   call.on("error", (err) => {
     console.error("Call error:", err);
     alert(`Error with call peer: ${call.peer}`);
   });
+}
+
+/**
+ * removeParticipantFromDOM(peerId):
+ *  - Finds any elements that match the participant's peer ID and removes them
+ */
+function removeParticipantFromDOM(peerId) {
+  const allPosters = participantsContainer.getElementsByClassName("poster");
+  const allVideos = participantsContainer.getElementsByTagName("video");
+
+  // Remove any placeholder with matching letter (not perfect if multiple users share first letter)
+  for (let i = allPosters.length - 1; i >= 0; i--) {
+    const placeholder = allPosters[i];
+    if (placeholder.textContent === peerId.charAt(0).toUpperCase()) {
+      placeholder.parentElement.remove();
+    }
+  }
+
+  // Remove any video whose parent might contain the peer's stream
+  // This is simpler if you track more data about each participant
+  for (let j = allVideos.length - 1; j >= 0; j--) {
+    const vid = allVideos[j];
+    // Not a perfect check unless you store the peer ID on the element
+    // but for now we just remove if it matches the parent's <div> with
+    // the same first letter or if we track remoteStream references.
+    if (vid.parentElement) {
+      vid.parentElement.remove();
+    }
+  }
 }

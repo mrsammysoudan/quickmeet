@@ -106,10 +106,17 @@ h1 {
   gap: 10px;
 }
 
+#participants .participant {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+}
+
 #participants video {
   width: 200px;
   border: 2px solid #2196f3;
   border-radius: 8px;
+  margin-bottom: 6px;
 }
 
 /* Media Queries for Mobile Responsiveness */
