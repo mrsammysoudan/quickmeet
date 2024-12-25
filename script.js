@@ -26,147 +26,144 @@ window.addEventListener("DOMContentLoaded", () => {
 
   // Parse ?room= from URL
   const urlParams = new URLSearchParams(window.location.search);
-  const roomParam = urlParams.get("room");
+  const roomParam = urlParams.get("room"); // e.g., ?room=6edf5051-4b36-464f-9279-d47d8d03ae18
 
   // App State
   let peer; // Our PeerJS instance
-  let localStream = null;
-  let activeCalls = []; // Keep track of multiple calls
-  let isHost = false;
-  let currentRoomId = null;
+  let localStream = null; // Our local media stream
+  let activeCalls = []; // Keep track of active calls
+  let isHost = false; // Determine if user is host
+  let currentRoomId = null; // The room ID (host's PeerJS ID)
 
   /************************************************
-   * Decide if user is Host or Participant
+   * Initialize the Application Based on URL
    ************************************************/
   if (roomParam) {
-    // Check if the host flag is set in sessionStorage
-    if (sessionStorage.getItem("isHost") === "true") {
-      // This user is the host
-      isHost = true;
-      currentRoomId = roomParam;
-      initializePeer();
-    } else {
-      // This user is a participant
-      isHost = false;
-      currentRoomId = roomParam;
-      initializePeer();
-    }
+    // User is a participant
+    isHost = false;
+    currentRoomId = roomParam;
+    initializePeer(); // Initialize PeerJS for participant
   } else {
-    // Show the lobby until the user clicks "Start Meeting"
-    lobbySection.style.display = "block";
+    // User is the host
+    lobbySection.style.display = "block"; // Show lobby
   }
 
-  // Host: clicks "Start Meeting"
+  /************************************************
+   * "Start Meeting" Button Click Handler
+   ************************************************/
   startMeetingBtn.onclick = () => {
     isHost = true;
-    sessionStorage.setItem("isHost", "true"); // Flag this session as host
-    initializePeer();
+    initializePeer(); // Initialize PeerJS for host
   };
 
   /************************************************
    * Initialize PeerJS
    ************************************************/
   function initializePeer() {
-    // Let PeerJS auto-assign an ID
+    // Create a new PeerJS instance; PeerJS assigns a unique ID automatically
     peer = new Peer();
 
     peer.on("open", (assignedID) => {
       console.log("Peer open with ID:", assignedID);
 
       if (isHost) {
-        // Host: Update the URL with ?room=<hostID>
+        // Host: Update the URL with ?room=<peer.id>
         currentRoomId = assignedID;
         const newURL = `${location.origin}${
           location.pathname
         }?room=${encodeURIComponent(assignedID)}`;
-        history.replaceState({}, "", newURL); // Update the URL without reloading
+        history.replaceState({}, "", newURL); // Update browser URL without reloading
 
         // Display the meeting link in the top bar
         meetingLinkSpan.textContent = newURL;
         meetingInfoBar.style.display = "flex";
 
-        // Show placeholder letter for the host
+        // Show local placeholder letter
         showLocalPlaceholder();
       }
 
-      // Show the meeting UI
+      // Show the meeting UI (hide lobby)
       showMeetingUI();
 
-      // If participant, call the host
-      if (!isHost && currentRoomId) {
-        callHost(currentRoomId);
-      }
-
-      // Request microphone access by default for both host and participants
-      requestMicrophoneAccess();
+      // After PeerJS is ready, request media permissions
+      requestMediaPermissions();
     });
 
-    // Listen for incoming calls
+    // Listen for incoming calls (for both host and participants)
     peer.on("call", (incomingCall) => {
-      // Answer with localStream if available, else null
+      // Answer the call with our local stream (if available)
       incomingCall.answer(localStream || null);
-      handleNewCall(incomingCall);
+      handleIncomingCall(incomingCall);
     });
 
-    // PeerJS error handling
+    // Handle PeerJS errors
     peer.on("error", (err) => {
-      console.error("Peer error:", err);
+      console.error("PeerJS Error:", err);
       alert(`PeerJS Error: ${err.type} - ${err.message}`);
     });
+  }
+
+  /************************************************
+   * Request Camera and Microphone Permissions
+   ************************************************/
+  async function requestMediaPermissions() {
+    try {
+      // Request both video and audio permissions
+      localStream = await navigator.mediaDevices.getUserMedia({
+        video: true, // Video is optional; users can disable it later
+        audio: true, // Audio is required for mute functionality
+      });
+
+      // If media permissions are granted, display the local video
+      if (localStream) {
+        localVideo.srcObject = localStream;
+        localVideo.style.display = "block"; // Show video
+        localPoster.style.display = "none"; // Hide placeholder
+      }
+    } catch (err) {
+      console.warn("Camera/Microphone access denied or not available:", err);
+      alert(
+        "Unable to access camera/microphone. You can join with audio only."
+      );
+
+      // Show placeholder since no video is available
+      showLocalPlaceholder();
+    }
+
+    // If the user is a participant, attempt to call the host after media permissions are handled
+    if (!isHost && currentRoomId) {
+      callHost(currentRoomId);
+    }
   }
 
   /************************************************
    * Show Meeting UI
    ************************************************/
   function showMeetingUI() {
-    lobbySection.style.display = "none";
-    meetingSection.style.display = "block";
+    lobbySection.style.display = "none"; // Hide lobby
+    meetingSection.style.display = "block"; // Show meeting UI
   }
 
   /************************************************
-   * Request Microphone Access
-   ************************************************/
-  async function requestMicrophoneAccess() {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      // If localStream already exists (from camera), add audio tracks
-      if (localStream) {
-        const audioTracks = stream.getAudioTracks();
-        audioTracks.forEach((track) => {
-          localStream.addTrack(track);
-        });
-      } else {
-        // Initialize localStream with audio
-        localStream = stream;
-      }
-      // Update local video if stream exists
-      if (localStream) {
-        localVideo.srcObject = localStream;
-      }
-    } catch (err) {
-      console.warn("Microphone access denied:", err);
-      alert("Unable to access microphone. You won't be able to speak.");
-    }
-  }
-
-  /************************************************
-   * Call Host (for participants)
+   * Call Host (For Participants)
    ************************************************/
   function callHost(hostId) {
     console.log("Attempting to call host ID:", hostId);
     const call = peer.call(hostId, localStream || null);
+
     if (!call) {
       console.warn("Failed to call host with ID:", hostId);
-      alert("Failed to join meeting. Please try again.");
+      alert("Failed to join the meeting. Please try again.");
       return;
     }
-    handleNewCall(call);
+
+    handleIncomingCall(call);
   }
 
   /************************************************
-   * Handle New Call (Both Host and Participant)
+   * Handle Incoming Call (Both Host and Participant)
    ************************************************/
-  function handleNewCall(call) {
+  function handleIncomingCall(call) {
     activeCalls.push(call);
 
     call.on("stream", (remoteStream) => {
@@ -177,14 +174,14 @@ window.addEventListener("DOMContentLoaded", () => {
       participantDiv.classList.add("video-container");
 
       if (hasVideo) {
-        // Display remote video
+        // If the participant has video, display it
         const remoteVideo = document.createElement("video");
         remoteVideo.autoplay = true;
         remoteVideo.playsInline = true;
         remoteVideo.srcObject = remoteStream;
         participantDiv.appendChild(remoteVideo);
       } else {
-        // Display placeholder letter
+        // If no video, display a placeholder letter
         const placeholder = document.createElement("div");
         placeholder.classList.add("poster");
         placeholder.textContent = getRandomLetter();
@@ -200,7 +197,7 @@ window.addEventListener("DOMContentLoaded", () => {
     });
 
     call.on("error", (err) => {
-      console.error("Call error:", err);
+      console.error("Call Error with peer", call.peer, ":", err);
       alert(`Error with call peer: ${call.peer}`);
     });
   }
@@ -209,24 +206,25 @@ window.addEventListener("DOMContentLoaded", () => {
    * Remove Participant from UI
    ************************************************/
   function removeParticipant(peerId) {
-    // For a robust solution, maintain a map of peerId to DOM elements.
-    // Here, we'll remove the first matching placeholder or video.
+    // Remove the participant's video or placeholder from the UI
+
+    // Remove placeholders
     const posters = participantsContainer.getElementsByClassName("poster");
-    for (let i = 0; i < posters.length; i++) {
-      // Assuming the placeholder's text corresponds to the participant's letter
-      // This is a simplistic approach and may not be unique
-      if (posters[i].parentElement) {
+    for (let i = posters.length - 1; i >= 0; i--) {
+      // Assuming the placeholder corresponds to the peer ID's first letter
+      if (
+        posters[i].textContent.charAt(0).toUpperCase() ===
+        peerId.charAt(0).toUpperCase()
+      ) {
         posters[i].parentElement.remove();
-        break;
       }
     }
 
+    // Remove videos
     const videos = participantsContainer.getElementsByTagName("video");
-    for (let j = 0; j < videos.length; j++) {
-      if (videos[j].parentElement) {
-        videos[j].parentElement.remove();
-        break;
-      }
+    for (let j = videos.length - 1; j >= 0; j--) {
+      // Assuming each video corresponds to a unique participant
+      videos[j].parentElement.remove();
     }
   }
 
@@ -234,9 +232,10 @@ window.addEventListener("DOMContentLoaded", () => {
    * Show Local Placeholder Letter
    ************************************************/
   function showLocalPlaceholder() {
-    localPoster.textContent = getRandomLetter();
-    localPoster.style.display = "flex";
-    localVideo.style.display = "none";
+    const letter = getRandomLetter();
+    localPoster.textContent = letter;
+    localPoster.style.display = "flex"; // Show placeholder
+    localVideo.style.display = "none"; // Hide video
   }
 
   /************************************************
@@ -248,59 +247,75 @@ window.addEventListener("DOMContentLoaded", () => {
   }
 
   /************************************************
-   * Start Camera Button Click
+   * Start Camera Button Click Handler
    ************************************************/
   startCameraBtn.onclick = async () => {
     try {
-      const cameraStream = await navigator.mediaDevices.getUserMedia({
+      // Request camera permissions
+      const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "user" },
-        audio: false, // Audio already handled separately
+        audio: true,
       });
 
+      // Merge the new video track with the existing audio track (if any)
       if (localStream) {
-        // Add video tracks to existing localStream
-        cameraStream.getVideoTracks().forEach((track) => {
-          localStream.addTrack(track);
-        });
+        const videoTrack = stream.getVideoTracks()[0];
+        if (videoTrack) {
+          localStream.addTrack(videoTrack);
+          localVideo.srcObject = localStream;
+          localVideo.style.display = "block"; // Show video
+          localPoster.style.display = "none"; // Hide placeholder
+        }
       } else {
-        // Initialize localStream with video (and potentially audio)
-        localStream = cameraStream;
-        // Re-request microphone access to include audio
-        await requestMicrophoneAccess();
+        // If localStream was null, set it to the new stream
+        localStream = stream;
+        localVideo.srcObject = localStream;
+        localVideo.style.display = "block"; // Show video
+        localPoster.style.display = "none"; // Hide placeholder
       }
 
-      // Replace placeholder with video
-      localPoster.style.display = "none";
-      localVideo.srcObject = localStream;
-      localVideo.style.display = "block";
+      // Update all active calls with the new stream
+      activeCalls.forEach((call) => {
+        call.peerConnection.getSenders().forEach((sender) => {
+          if (sender.track.kind === "video") {
+            sender.replaceTrack(stream.getVideoTracks()[0]);
+          }
+        });
+      });
     } catch (err) {
-      console.warn("Camera access denied:", err);
-      alert("Unable to access camera. Placeholder will remain.");
+      console.warn("Unable to access camera/mic:", err);
+      alert("Unable to access camera/mic.");
     }
   };
 
   /************************************************
-   * Mute/Unmute Button Click
+   * Mute/Unmute Button Click Handler
    ************************************************/
   muteBtn.onclick = () => {
     if (!localStream) {
-      alert("No microphone to mute yet!");
+      alert("No camera/mic to mute yet!");
       return;
     }
+
     const audioTracks = localStream.getAudioTracks();
     if (audioTracks.length === 0) {
-      alert("No microphone to mute yet!");
+      alert("No audio track found.");
       return;
     }
-    const audioTrack = audioTracks[0];
-    audioTrack.enabled = !audioTrack.enabled;
-    muteBtn.innerHTML = audioTrack.enabled
-      ? '<i class="fas fa-microphone"></i>'
-      : '<i class="fas fa-microphone-slash"></i>';
+
+    // Toggle the enabled state of the first audio track
+    audioTracks[0].enabled = !audioTracks[0].enabled;
+
+    // Update the mute button icon based on the current state
+    if (audioTracks[0].enabled) {
+      muteBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+    } else {
+      muteBtn.innerHTML = '<i class="fas fa-microphone-slash"></i>';
+    }
   };
 
   /************************************************
-   * Leave Meeting Button Click
+   * Leave Meeting Button Click Handler
    ************************************************/
   leaveBtn.onclick = () => {
     // Close all active calls
@@ -322,7 +337,7 @@ window.addEventListener("DOMContentLoaded", () => {
   };
 
   /************************************************
-   * Copy Link Button Click
+   * Copy Link Button Click Handler
    ************************************************/
   copyLinkBtn.onclick = () => {
     const link = meetingLinkSpan.textContent.trim();
@@ -335,6 +350,7 @@ window.addEventListener("DOMContentLoaded", () => {
       })
       .catch((err) => {
         console.error("Failed to copy link:", err);
+        alert("Failed to copy link.");
       });
   };
 });
