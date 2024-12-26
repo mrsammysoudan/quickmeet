@@ -5,7 +5,7 @@
  *   - Camera is optional; placeholder shown if camera is off
  *   - Mute functionality works without camera
  *   - Immediate media permissions only after joining
- *   - Screen Sharing Fix for Host with Audio Mixing
+ *   - Screen Sharing Fix for Host
  *   - Click to Enlarge Shared Screen
  *   - Local Chat Feature with Real-Time Messaging via Host Relay
  ************************************************/
@@ -58,13 +58,6 @@ window.addEventListener("DOMContentLoaded", () => {
   let isScreenSharing = false; // Flag to track screen sharing state
   let currentAudioTrack = null; // Currently active audio track being sent
 
-  // Audio Mixing (for screen sharing with microphone audio)
-  let audioContext = null;
-  let audioDestination = null;
-  let microphoneSource = null;
-  let screenAudioSource = null;
-  let mixedAudioStream = null;
-
   // By default, show the lobby, hide the meeting
   lobbySection.style.display = "block";
   meetingSection.style.display = "none";
@@ -90,9 +83,6 @@ window.addEventListener("DOMContentLoaded", () => {
    * Initialize PeerJS
    ************************************************/
   function initializePeer() {
-    // Initialize the video grid layout using Flexbox
-    initializeVideoGridLayout();
-
     // Use the default PeerJS cloud server
     peer = new Peer({
       host: "0.peerjs.com",
@@ -120,11 +110,11 @@ window.addEventListener("DOMContentLoaded", () => {
         // Show local placeholder letter (before camera starts)
         showLocalPlaceholder();
 
-        // Request media permissions (audio only initially)
-        requestMediaPermissions({ audio: true, video: false });
+        // Request camera/mic after peer is ready
+        requestMediaPermissions();
       } else {
-        // If user is a participant, just request their audio
-        requestMediaPermissions({ audio: true, video: false });
+        // If user is a participant, just request their camera/mic
+        requestMediaPermissions();
       }
     });
 
@@ -134,7 +124,7 @@ window.addEventListener("DOMContentLoaded", () => {
         `[DEBUG] Incoming call from participant ID: ${incomingCall.peer}`
       );
 
-      // Always answer with localStream if we have it, or null if audio wasn't started
+      // Always answer with localStream if we have it, or null if camera wasn't started
       incomingCall.answer(localStream || null);
       console.log(
         `[DEBUG] Answered call from participant ID: ${incomingCall.peer}`
@@ -185,7 +175,7 @@ window.addEventListener("DOMContentLoaded", () => {
           remoteVideo.style.cursor = "pointer"; // Indicate clickable
 
           // Set default size via CSS classes
-          remoteVideo.classList.add("small-video", "square-video");
+          remoteVideo.classList.add("small-video");
 
           // Add click event to enlarge the video
           remoteVideo.onclick = () => {
@@ -270,29 +260,13 @@ window.addEventListener("DOMContentLoaded", () => {
   }
 
   /************************************************
-   * Initialize Video Grid Layout
-   ************************************************/
-  function initializeVideoGridLayout() {
-    // Set videoGrid to use Flexbox with wrapping
-    videoGrid.style.display = "flex";
-    videoGrid.style.flexWrap = "wrap";
-    videoGrid.style.justifyContent = "center"; // Center videos
-    videoGrid.style.alignItems = "center"; // Center videos vertically
-    videoGrid.style.gap = "10px"; // Space between videos
-    console.log("[DEBUG] Initialized videoGrid layout with Flexbox.");
-  }
-
-  /************************************************
    * Request Camera and Microphone Permissions
    ************************************************/
   /************************************************
    * Request Camera and Microphone Permissions
    * - Detect mobile devices and customize constraints
-   * - Allow video to be optional
    ************************************************/
-  async function requestMediaPermissions(
-    constraintsOverride = { audio: true, video: false }
-  ) {
+  async function requestMediaPermissions() {
     // Check if the user is on a mobile device
     const isMobile =
       /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
@@ -300,19 +274,20 @@ window.addEventListener("DOMContentLoaded", () => {
       );
 
     // For mobile devices, specifically request the front-facing camera
-    // For desktop, video is optional
-    const constraints = {
-      audio: constraintsOverride.audio,
-      video: constraintsOverride.video
-        ? isMobile
-          ? {
-              facingMode: "user", // "user" = front cam, "environment" = rear cam
-              width: { ideal: 1280 },
-              height: { ideal: 720 },
-            }
-          : true
-        : false,
-    };
+    // For desktop, just request a normal camera
+    const constraints = isMobile
+      ? {
+          video: {
+            facingMode: "user", // "user" = front cam, "environment" = rear cam
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
+          audio: true,
+        }
+      : {
+          video: true,
+          audio: true,
+        };
 
     console.log("[DEBUG] getUserMedia constraints:", constraints);
 
@@ -321,41 +296,23 @@ window.addEventListener("DOMContentLoaded", () => {
       localStream = await navigator.mediaDevices.getUserMedia(constraints);
       console.log("[DEBUG] Media permissions granted.");
 
-      if (constraints.video) {
-        // Store the camera video track
-        cameraVideoTrack = localStream.getVideoTracks()[0];
-        console.log(
-          `[DEBUG] Camera video track obtained: label=${cameraVideoTrack.label}, enabled=${cameraVideoTrack.enabled}`
-        );
-
-        // Show local video
-        localVideo.srcObject = localStream;
-        localVideo.style.display = "block";
-        localPoster.style.display = "none";
-        console.log("[DEBUG] Local video displayed.");
-
-        // Add click event to local video for enlargement
-        localVideo.onclick = () => {
-          toggleEnlargeVideo(localVideo, localBlock);
-        };
-      } else {
-        // No video track, show placeholder
-        showLocalPlaceholder();
-      }
+      // Store the camera video track
+      cameraVideoTrack = localStream.getVideoTracks()[0];
+      console.log(
+        `[DEBUG] Camera video track obtained: label=${cameraVideoTrack.label}, enabled=${cameraVideoTrack.enabled}`
+      );
 
       // Store the microphone audio track
-      if (constraints.audio) {
-        microphoneAudioTrack = localStream.getAudioTracks()[0];
-        console.log(
-          `[DEBUG] Microphone audio track obtained: label=${microphoneAudioTrack.label}, enabled=${microphoneAudioTrack.enabled}`
-        );
+      microphoneAudioTrack = localStream.getAudioTracks()[0];
+      console.log(
+        `[DEBUG] Microphone audio track obtained: label=${microphoneAudioTrack.label}, enabled=${microphoneAudioTrack.enabled}`
+      );
 
-        // Initialize currentAudioTrack to microphoneAudioTrack
-        currentAudioTrack = microphoneAudioTrack;
-        console.log(
-          `[DEBUG] Initialized currentAudioTrack to microphoneAudioTrack.`
-        );
-      }
+      // Initialize currentAudioTrack to microphoneAudioTrack
+      currentAudioTrack = microphoneAudioTrack;
+      console.log(
+        `[DEBUG] Initialized currentAudioTrack to microphoneAudioTrack.`
+      );
 
       // Log track info for debugging
       localStream.getTracks().forEach((track) => {
@@ -363,6 +320,17 @@ window.addEventListener("DOMContentLoaded", () => {
           `[DEBUG] local track kind="${track.kind}" label="${track.label}" enabled=${track.enabled}`
         );
       });
+
+      // Show local video
+      localVideo.srcObject = localStream;
+      localVideo.style.display = "block";
+      localPoster.style.display = "none";
+      console.log("[DEBUG] Local video displayed.");
+
+      // Add click event to local video for enlargement
+      localVideo.onclick = () => {
+        toggleEnlargeVideo(localVideo, localBlock);
+      };
     } catch (err) {
       console.warn("[DEBUG] Error accessing camera/microphone:", err);
       alert(
@@ -441,7 +409,7 @@ window.addEventListener("DOMContentLoaded", () => {
         remoteVideo.style.cursor = "pointer"; // Indicate clickable
 
         // Set default size via CSS classes
-        remoteVideo.classList.add("small-video", "square-video");
+        remoteVideo.classList.add("small-video");
 
         // Add click event to enlarge the video
         remoteVideo.onclick = () => {
@@ -565,121 +533,74 @@ window.addEventListener("DOMContentLoaded", () => {
   /************************************************
    * Start Camera (Toggle) Button
    ************************************************/
-  startCameraBtn.onclick = async () => {
+  startCameraBtn.onclick = () => {
     console.log("[DEBUG] 'Toggle Camera' clicked.");
-    if (cameraVideoTrack && localStream) {
-      // Toggle the enabled state of the camera video track
-      cameraVideoTrack.enabled = !cameraVideoTrack.enabled;
-      console.log(
-        `[DEBUG] Camera video track enabled=${cameraVideoTrack.enabled}`
-      );
+    if (!localStream) {
+      console.warn("[DEBUG] No localStream available when toggling camera.");
+      return;
+    }
+    const videoTracks = localStream.getVideoTracks();
+    if (videoTracks.length === 0) {
+      console.warn("[DEBUG] No video tracks found on localStream.");
+      return;
+    }
 
-      // Update the camera button icon
-      startCameraBtn.innerHTML = cameraVideoTrack.enabled
-        ? '<i class="fas fa-video"></i>'
-        : '<i class="fas fa-video-slash"></i>';
+    const videoTrack = videoTracks[0];
+    videoTrack.enabled = !videoTrack.enabled;
+    console.log(`[DEBUG] Video track enabled=${videoTrack.enabled}`);
 
-      if (cameraVideoTrack.enabled) {
-        // If enabling camera, display local video
-        localVideo.style.display = "block";
-        localPoster.style.display = "none";
-        console.log("[DEBUG] Local video displayed.");
-      } else {
-        // If disabling camera, show placeholder
-        localVideo.style.display = "none";
-        showLocalPlaceholder();
-        console.log("[DEBUG] Local video hidden. Placeholder displayed.");
-      }
+    // Update the camera button icon
+    startCameraBtn.innerHTML = videoTrack.enabled
+      ? '<i class="fas fa-video"></i>'
+      : '<i class="fas fa-video-slash"></i>';
 
-      // Update track in existing calls
-      activeCalls.forEach((call) => {
-        call.peerConnection.getSenders().forEach((sender) => {
-          if (sender.track && sender.track.kind === "video") {
-            if (cameraVideoTrack.enabled) {
-              console.log(
-                `[DEBUG] Replacing track with enabled video for peer="${call.peer}".`
+    // Update track in existing calls
+    activeCalls.forEach((call) => {
+      call.peerConnection.getSenders().forEach((sender) => {
+        if (sender.track && sender.track.kind === "video") {
+          if (videoTrack.enabled) {
+            console.log(
+              `[DEBUG] Replacing track with enabled video for peer="${call.peer}".`
+            );
+            sender.replaceTrack(videoTrack).catch((err) => {
+              console.error(
+                `[DEBUG] Error replacing video track for peer="${call.peer}":`,
+                err
               );
-              sender.replaceTrack(cameraVideoTrack).catch((err) => {
-                console.error(
-                  `[DEBUG] Error replacing video track for peer="${call.peer}":`,
-                  err
-                );
-              });
-            } else {
-              console.log(
-                `[DEBUG] Removing video track for peer="${call.peer}".`
+            });
+          } else {
+            console.log(
+              `[DEBUG] Removing video track for peer="${call.peer}".`
+            );
+            sender.replaceTrack(null).catch((err) => {
+              console.error(
+                `[DEBUG] Error removing video track for peer="${call.peer}":`,
+                err
               );
-              sender.replaceTrack(null).catch((err) => {
-                console.error(
-                  `[DEBUG] Error removing video track for peer="${call.peer}":`,
-                  err
-                );
-              });
-            }
+            });
           }
-        });
+        }
       });
+    });
+
+    // Show/hide local video
+    if (videoTrack.enabled) {
+      localVideo.style.display = "block";
+      localPoster.style.display = "none";
+      console.log("[DEBUG] Local video displayed.");
     } else {
-      // If cameraVideoTrack is null, attempt to start the camera
-      console.log(
-        "[DEBUG] Camera video track not found. Attempting to start camera."
-      );
-      await startCamera();
+      localVideo.style.display = "none";
+      showLocalPlaceholder();
+      console.log("[DEBUG] Local video hidden. Placeholder displayed.");
     }
   };
-
-  /************************************************
-   * Start Camera Function
-   ************************************************/
-  async function startCamera() {
-    if (localStream) {
-      try {
-        const videoStream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-        });
-        const newVideoTrack = videoStream.getVideoTracks()[0];
-        localStream.addTrack(newVideoTrack);
-        cameraVideoTrack = newVideoTrack;
-        currentAudioTrack = microphoneAudioTrack; // Ensure current audio track is microphone
-
-        // Update the camera button icon
-        startCameraBtn.innerHTML = '<i class="fas fa-video"></i>';
-        startCameraBtn.title = "Turn Off Camera";
-
-        // Display local video
-        localVideo.srcObject = localStream;
-        localVideo.style.display = "block";
-        localPoster.style.display = "none";
-        console.log("[DEBUG] Camera started and local video displayed.");
-
-        // Update track in existing calls
-        activeCalls.forEach((call) => {
-          call.peerConnection.getSenders().forEach((sender) => {
-            if (sender.track && sender.track.kind === "video") {
-              sender.replaceTrack(newVideoTrack).catch((err) => {
-                console.error(
-                  `[DEBUG] Error replacing video track for peer="${call.peer}":`,
-                  err
-                );
-              });
-            }
-          });
-        });
-      } catch (err) {
-        console.error("[DEBUG] Error starting camera:", err);
-        alert("Unable to start the camera.");
-      }
-    } else {
-      console.warn("[DEBUG] No local stream available to start camera.");
-    }
-  }
 
   /************************************************
    * Mute/Unmute Button
    ************************************************/
   muteBtn.onclick = () => {
     if (!localStream) {
-      alert("No microphone to mute yet!");
+      alert("No camera/mic to mute yet!");
       return;
     }
 
@@ -862,8 +783,8 @@ window.addEventListener("DOMContentLoaded", () => {
    * Share Screen Button
    ************************************************/
   shareScreenBtn.onclick = async () => {
-    if (!localStream && !cameraVideoTrack) {
-      alert("Please start your microphone before sharing your screen.");
+    if (!localStream) {
+      alert("Please start your camera before sharing your screen.");
       return;
     }
 
@@ -894,72 +815,22 @@ window.addEventListener("DOMContentLoaded", () => {
         `[DEBUG] Screen video track obtained: label=${screenVideoTrack.label}, enabled=${screenVideoTrack.enabled}`
       );
 
-      // Handle audio tracks
+      // Get the screen audio track if audio is shared
       if (shareAudio) {
-        // Get screen audio track
-        const screenAudioTracks = screenStream.getAudioTracks();
-        if (screenAudioTracks.length > 0) {
-          screenAudioTrack = screenAudioTracks[0];
+        const audioTracks = screenStream.getAudioTracks();
+        if (audioTracks.length > 0) {
+          screenAudioTrack = audioTracks[0];
           console.log(
             `[DEBUG] Screen audio track obtained: label=${screenAudioTrack.label}, enabled=${screenAudioTrack.enabled}`
           );
+          currentAudioTrack = screenAudioTrack; // Set current audio track to screen audio
         } else {
           console.warn(
             "[DEBUG] No audio tracks found in screen stream despite requesting audio."
           );
         }
-
-        // Create AudioContext to mix microphone and screen audio
-        if (!audioContext) {
-          audioContext = new (window.AudioContext ||
-            window.webkitAudioContext)();
-          console.log("[DEBUG] Created new AudioContext for audio mixing.");
-        }
-
-        audioDestination = audioContext.createMediaStreamDestination();
-
-        // Create source nodes
-        if (microphoneAudioTrack) {
-          microphoneSource = audioContext.createMediaStreamSource(
-            new MediaStream([microphoneAudioTrack])
-          );
-          microphoneSource.connect(audioDestination);
-          console.log(
-            "[DEBUG] Connected microphone audio source to AudioContext."
-          );
-        }
-
-        if (screenAudioTrack) {
-          screenAudioSource = audioContext.createMediaStreamSource(
-            new MediaStream([screenAudioTrack])
-          );
-          screenAudioSource.connect(audioDestination);
-          console.log("[DEBUG] Connected screen audio source to AudioContext.");
-        }
-
-        // Get the mixed audio stream
-        mixedAudioStream = audioDestination.stream;
-        console.log("[DEBUG] Mixed audio stream obtained.");
-
-        // Replace audio track in all active calls with mixed audio track
-        activeCalls.forEach((call) => {
-          const audioSender = call.peerConnection
-            .getSenders()
-            .find((s) => s.track && s.track.kind === "audio");
-          if (audioSender && mixedAudioStream) {
-            const mixedAudioTrack = mixedAudioStream.getAudioTracks()[0];
-            audioSender.replaceTrack(mixedAudioTrack).catch((err) => {
-              console.error(
-                `[DEBUG] Error replacing mixed audio track for peer="${call.peer}":`,
-                err
-              );
-            });
-          }
-        });
-
-        // Update currentAudioTrack to mixedAudioTrack
-        currentAudioTrack = mixedAudioStream.getAudioTracks()[0];
-        console.log("[DEBUG] currentAudioTrack set to mixed audio track.");
+      } else {
+        currentAudioTrack = microphoneAudioTrack; // Ensure currentAudioTrack is set to microphone
       }
 
       // Replace video track in all active calls with screenVideoTrack
@@ -983,17 +854,16 @@ window.addEventListener("DOMContentLoaded", () => {
             });
         }
 
-        if (shareAudio && mixedAudioStream) {
+        if (shareAudio && screenAudioTrack) {
           const audioSender = call.peerConnection
             .getSenders()
             .find((s) => s.track && s.track.kind === "audio");
           if (audioSender) {
-            const mixedAudioTrack = mixedAudioStream.getAudioTracks()[0];
             audioSender
-              .replaceTrack(mixedAudioTrack)
+              .replaceTrack(screenAudioTrack)
               .then(() => {
                 console.log(
-                  `[DEBUG] Replaced audio track with mixed audio for peer="${call.peer}".`
+                  `[DEBUG] Replaced audio track with screen audio for peer="${call.peer}".`
                 );
               })
               .catch((err) => {
@@ -1063,7 +933,7 @@ window.addEventListener("DOMContentLoaded", () => {
         const videoSender = call.peerConnection
           .getSenders()
           .find((s) => s.track && s.track.kind === "video");
-        if (videoSender && cameraVideoTrack && cameraVideoTrack.enabled) {
+        if (videoSender && cameraVideoTrack) {
           videoSender
             .replaceTrack(cameraVideoTrack)
             .then(() => {
@@ -1077,20 +947,9 @@ window.addEventListener("DOMContentLoaded", () => {
                 err
               );
             });
-        } else if (
-          videoSender &&
-          (!cameraVideoTrack || !cameraVideoTrack.enabled)
-        ) {
-          // If camera is not enabled, remove the video track
-          videoSender.replaceTrack(null).catch((err) => {
-            console.error(
-              `[DEBUG] Error removing video track for peer="${call.peer}":`,
-              err
-            );
-          });
         }
 
-        if (screenAudioTrack && microphoneAudioTrack && mixedAudioStream) {
+        if (screenAudioTrack && microphoneAudioTrack) {
           const audioSender = call.peerConnection
             .getSenders()
             .find((s) => s.track && s.track.kind === "audio");
@@ -1099,7 +958,7 @@ window.addEventListener("DOMContentLoaded", () => {
               .replaceTrack(microphoneAudioTrack)
               .then(() => {
                 console.log(
-                  `[DEBUG] Replaced mixed audio track with microphone track for peer="${call.peer}".`
+                  `[DEBUG] Replaced screen audio track with microphone track for peer="${call.peer}".`
                 );
               })
               .catch((err) => {
@@ -1112,19 +971,9 @@ window.addEventListener("DOMContentLoaded", () => {
         }
       });
 
-      // Restore the local video element to display the camera or placeholder
-      if (cameraVideoTrack && cameraVideoTrack.enabled) {
-        localVideo.srcObject = localStream;
-        localVideo.style.display = "block";
-        localPoster.style.display = "none";
-        console.log("[DEBUG] Local video source restored to camera stream.");
-      } else {
-        // If camera is not enabled, show placeholder
-        localVideo.srcObject = null;
-        localVideo.style.display = "none";
-        showLocalPlaceholder();
-        console.log("[DEBUG] Camera is off. Showing placeholder.");
-      }
+      // Restore the local video element to display the camera
+      localVideo.srcObject = localStream;
+      console.log("[DEBUG] Local video source restored to camera stream.");
 
       // Remove the 'screen-sharing' class to return to normal size
       const localBlock = document.getElementById("localBlock");
@@ -1152,17 +1001,6 @@ window.addEventListener("DOMContentLoaded", () => {
       screenVideoTrack = null;
       screenAudioTrack = null;
       console.log("[DEBUG] Cleared screen stream references.");
-
-      // Stop Audio Mixing
-      if (audioContext) {
-        audioContext.close();
-        audioContext = null;
-        audioDestination = null;
-        microphoneSource = null;
-        screenAudioSource = null;
-        mixedAudioStream = null;
-        console.log("[DEBUG] AudioContext closed and audio mixing stopped.");
-      }
 
       // Change the Share Screen button icon back
       shareScreenBtn.innerHTML = '<i class="fas fa-desktop"></i>';
@@ -1304,16 +1142,10 @@ window.addEventListener("DOMContentLoaded", () => {
         });
       } else {
         // Participant received a message from the host (broadcast)
-        // Assume the message is in the format "User <peerId>: <message>"
-        const separatorIndex = data.indexOf(": ");
-        if (separatorIndex !== -1) {
-          const sender = data.substring(0, separatorIndex);
-          const message = data.substring(separatorIndex + 2);
-          appendChatMessage(sender, message);
-        } else {
-          // If message format is unexpected
-          appendChatMessage("Unknown", data);
-        }
+        appendChatMessage(
+          data.split(":")[0],
+          data.split(":").slice(1).join(":").trim()
+        );
       }
     });
 
@@ -1402,9 +1234,6 @@ window.addEventListener("DOMContentLoaded", () => {
   window.addEventListener("beforeunload", () => {
     if (screenStream) {
       screenStream.getTracks().forEach((track) => track.stop());
-    }
-    if (audioContext) {
-      audioContext.close();
     }
   });
 });
