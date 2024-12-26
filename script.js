@@ -192,6 +192,9 @@ window.addEventListener("DOMContentLoaded", () => {
   /************************************************
    * Handle Incoming Call (Both Host and Participant)
    ************************************************/
+  /************************************************
+   * Handle Incoming Call (Both Host and Participant)
+   ************************************************/
   function handleIncomingCall(call) {
     console.log("Handling incoming call from:", call.peer);
 
@@ -210,28 +213,36 @@ window.addEventListener("DOMContentLoaded", () => {
     // Use 'once' to ensure the event is handled only once
     call.once("stream", (remoteStream) => {
       console.log("Received remote stream from:", call.peer);
-      const hasVideo = remoteStream && remoteStream.getVideoTracks().length > 0;
+      const videoTracks = remoteStream.getVideoTracks();
+      console.log("Remote stream video tracks:", videoTracks);
 
       // Create a container for the participant
       const participantDiv = document.createElement("div");
       participantDiv.classList.add("video-container");
       participantDiv.setAttribute("data-peer-id", call.peer); // Assign peer ID for reference
 
-      if (hasVideo) {
+      if (videoTracks.length > 0) {
         // If the participant has video, display it
         const remoteVideo = document.createElement("video");
         remoteVideo.autoplay = true;
         remoteVideo.playsInline = true;
         remoteVideo.srcObject = remoteStream;
+
+        // Ensure video playback
         remoteVideo.onloadedmetadata = () => {
+          console.log(
+            "Metadata loaded for remote video. Attempting playback..."
+          );
           remoteVideo.play().catch((err) => {
             console.error("Error playing remote video:", err);
           });
         };
+
         participantDiv.appendChild(remoteVideo);
         console.log(`Displaying video stream from peer: ${call.peer}`);
       } else {
-        // If no video, display a placeholder letter
+        // If no video tracks, display a placeholder letter
+        console.warn("No video tracks in remote stream.");
         const placeholder = document.createElement("div");
         placeholder.classList.add("poster");
         placeholder.textContent = getRandomLetter();
