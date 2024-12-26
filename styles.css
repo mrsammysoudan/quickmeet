@@ -78,7 +78,12 @@ main {
  * LOBBY SECTION
  ****************************************************/
 .lobby {
-  text-align: center;
+  /* Use Flexbox to center child elements */
+  display: flex;
+  flex-direction: column;
+  align-items: center; /* Centers items horizontally */
+  justify-content: center; /* Centers items vertically if needed */
+  text-align: center; /* Ensures text inside child elements is centered */
   margin-top: 50px;
 }
 
@@ -99,8 +104,10 @@ main {
   display: flex;
   align-items: center;
   gap: 8px;
-}
 
+  /* Center the button itself within its container */
+  margin: 0 auto;
+}
 .primary-btn:hover {
   background-color: #1765c1;
 }
