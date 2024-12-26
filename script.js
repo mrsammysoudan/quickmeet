@@ -7,7 +7,7 @@
  *   - Immediate media permissions only after joining
  *   - Screen Sharing Fix for Host
  *   - Click to Enlarge Shared Screen
- *   - Local Chat Feature with Real-Time Messaging
+ *   - Local Chat Feature with Real-Time Messaging via Host Relay
  ************************************************/
 
 window.addEventListener("DOMContentLoaded", () => {
@@ -32,7 +32,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
   const shareScreenBtn = document.getElementById("shareScreenBtn"); // Share Screen Button
 
-  // New Chat Elements
+  // Chat Elements
   const chatContainer = document.getElementById("chatContainer");
   const chatMessages = document.getElementById("chatMessages");
   const chatInput = document.getElementById("chatInput");
@@ -154,7 +154,7 @@ window.addEventListener("DOMContentLoaded", () => {
           );
           if (!participantDiv) {
             participantDiv = document.createElement("div");
-            participantDiv.classList.add("video-container");
+            participantDiv.classList.add("video-container", "small"); // Add 'small' class by default
             participantDiv.setAttribute("data-peer-id", incomingCall.peer);
             videoGrid.appendChild(participantDiv);
             console.log(
@@ -174,14 +174,12 @@ window.addEventListener("DOMContentLoaded", () => {
           remoteVideo.style.display = "block";
           remoteVideo.style.cursor = "pointer"; // Indicate clickable
 
-          // Maintain 16:9 aspect ratio (1920x1080)
-          remoteVideo.style.width = "100%";
-          remoteVideo.style.height = "auto";
-          remoteVideo.style.maxHeight = "1080px";
+          // Set default size via CSS classes
+          remoteVideo.classList.add("small-video");
 
           // Add click event to enlarge the video
           remoteVideo.onclick = () => {
-            toggleEnlargeVideo(remoteVideo);
+            toggleEnlargeVideo(remoteVideo, participantDiv);
           };
 
           remoteVideo.onloadedmetadata = () => {
@@ -331,7 +329,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
       // Add click event to local video for enlargement
       localVideo.onclick = () => {
-        toggleEnlargeVideo(localVideo);
+        toggleEnlargeVideo(localVideo, localBlock);
       };
     } catch (err) {
       console.warn("[DEBUG] Error accessing camera/microphone:", err);
@@ -392,7 +390,7 @@ window.addEventListener("DOMContentLoaded", () => {
         let participantDiv = document.querySelector(`[data-peer-id="host"]`);
         if (!participantDiv) {
           participantDiv = document.createElement("div");
-          participantDiv.classList.add("video-container");
+          participantDiv.classList.add("video-container", "small"); // Add 'small' class by default
           participantDiv.setAttribute("data-peer-id", "host");
           videoGrid.appendChild(participantDiv);
           console.log(`[DEBUG] Created video container for host.`);
@@ -410,14 +408,12 @@ window.addEventListener("DOMContentLoaded", () => {
         remoteVideo.style.display = "block";
         remoteVideo.style.cursor = "pointer"; // Indicate clickable
 
-        // Maintain 16:9 aspect ratio (1920x1080)
-        remoteVideo.style.width = "100%";
-        remoteVideo.style.height = "auto";
-        remoteVideo.style.maxHeight = "1080px";
+        // Set default size via CSS classes
+        remoteVideo.classList.add("small-video");
 
         // Add click event to enlarge the video
         remoteVideo.onclick = () => {
-          toggleEnlargeVideo(remoteVideo);
+          toggleEnlargeVideo(remoteVideo, participantDiv);
         };
 
         remoteVideo.onloadedmetadata = () => {
@@ -1043,17 +1039,23 @@ window.addEventListener("DOMContentLoaded", () => {
   /************************************************
    * Toggle Enlarge Video Function
    ************************************************/
-  function toggleEnlargeVideo(videoElement) {
+  function toggleEnlargeVideo(videoElement, participantDiv) {
     if (videoElement.classList.contains("enlarged")) {
       videoElement.classList.remove("enlarged");
+      participantDiv.classList.remove("enlarged-container");
       console.log("[DEBUG] Enlarged video minimized.");
     } else {
       // Remove 'enlarged' class from any other videos
       const allVideos = videoGrid.querySelectorAll("video");
+      const allContainers = videoGrid.querySelectorAll(".video-container");
       allVideos.forEach((vid) => vid.classList.remove("enlarged"));
+      allContainers.forEach((div) =>
+        div.classList.remove("enlarged-container")
+      );
 
       // Add 'enlarged' class to the clicked video
       videoElement.classList.add("enlarged");
+      participantDiv.classList.add("enlarged-container");
       console.log("[DEBUG] Enlarged video maximized.");
     }
   }
@@ -1126,7 +1128,25 @@ window.addEventListener("DOMContentLoaded", () => {
 
     conn.on("data", (data) => {
       console.log(`[DEBUG] Received message from ${peerId}: ${data}`);
-      appendChatMessage(`User ${peerId}`, data);
+
+      if (isHost) {
+        // Host received a message from a participant
+        appendChatMessage(`User ${peerId}`, data);
+
+        // Broadcast the message to all other participants
+        Object.keys(dataConnections).forEach((id) => {
+          if (id !== peerId) {
+            dataConnections[id].send(`User ${peerId}: ${data}`);
+            console.log(`[DEBUG] Broadcasted message to peer: ${id}`);
+          }
+        });
+      } else {
+        // Participant received a message from the host (broadcast)
+        appendChatMessage(
+          data.split(":")[0],
+          data.split(":").slice(1).join(":").trim()
+        );
+      }
     });
 
     conn.on("close", () => {
@@ -1146,12 +1166,24 @@ window.addEventListener("DOMContentLoaded", () => {
    * Send Message to All Connected Peers
    ************************************************/
   function sendMessageToPeers(message) {
-    Object.values(dataConnections).forEach((conn) => {
-      if (conn.open) {
-        conn.send(message);
-        console.log(`[DEBUG] Sent message to peer: ${conn.peer}`);
+    if (isHost) {
+      // Host broadcasts directly to all connected peers
+      Object.values(dataConnections).forEach((conn) => {
+        if (conn.open) {
+          conn.send(`Host: ${message}`);
+          console.log(`[DEBUG] Sent message to peer: ${conn.peer}`);
+        }
+      });
+    } else {
+      // Participants send messages to the host only
+      const hostConnection = dataConnections[currentRoomId];
+      if (hostConnection && hostConnection.open) {
+        hostConnection.send(message);
+        console.log(`[DEBUG] Sent message to host: ${currentRoomId}`);
+      } else {
+        console.warn(`[DEBUG] No open connection to host: ${currentRoomId}`);
       }
-    });
+    }
   }
 
   /************************************************
