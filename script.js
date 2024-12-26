@@ -34,7 +34,7 @@ window.addEventListener("DOMContentLoaded", () => {
   let peer; // Our PeerJS instance
   let localStream = null; // Our local media stream
   let activeCalls = []; // Keep track of active calls
-  let isHost = false; // Determine if user is host
+  let isHost = null; // Determine if user is host
   let currentRoomId = null; // The room ID (host's PeerJS ID)
   let hasCalledHost = false; // Flag to prevent multiple call attempts
 
@@ -42,27 +42,17 @@ window.addEventListener("DOMContentLoaded", () => {
   const activePeers = {};
 
   /************************************************
-   * Initialize the Application Based on URL
+   * Initialize the Application
    ************************************************/
-  if (roomParam) {
-    // User is a participant
-    isHost = false;
-    currentRoomId = roomParam;
-    console.log(`User is a participant. Room ID: ${currentRoomId}`);
-    initializePeer(); // Initialize PeerJS for participant
-  } else {
-    // User is the host
-    console.log("User is the host.");
-    lobbySection.style.display = "block"; // Show lobby
-  }
+  initializePeer();
 
   /************************************************
    * "Start Meeting" Button Click Handler (Host)
    ************************************************/
   startMeetingBtn.onclick = () => {
-    isHost = true;
-    console.log("Host clicked 'Start Meeting'. Initializing PeerJS.");
-    initializePeer(); // Initialize PeerJS for host
+    console.log("Host clicked 'Start Meeting'.");
+    // The host is already initialized; no action needed here.
+    // The peer.on('open') handler will manage the rest.
   };
 
   /************************************************
@@ -74,10 +64,31 @@ window.addEventListener("DOMContentLoaded", () => {
 
     peer.on("open", (assignedID) => {
       console.log("PeerJS connection opened. Assigned ID:", assignedID);
+      currentRoomId = assignedID;
 
-      if (isHost) {
-        // Host: Update the URL with ?room=<peer.id>
-        currentRoomId = assignedID;
+      if (roomParam) {
+        if (roomParam === assignedID) {
+          // If the host opens the meeting link, treat them as the host
+          isHost = true;
+          console.log("Host is opening their own meeting link.");
+
+          // Display the meeting link in the top bar
+          meetingLinkSpan.textContent = window.location.href;
+          meetingInfoBar.style.display = "flex";
+
+          // Show local placeholder letter
+          showLocalPlaceholder();
+        } else {
+          // User is a participant
+          isHost = false;
+          console.log(`User is a participant. Room ID: ${currentRoomId}`);
+        }
+      } else {
+        // User is the host initiating the meeting
+        isHost = true;
+        console.log("User is the host.");
+
+        // Update the URL with ?room=<peer.id>
         const newURL = `${location.origin}${
           location.pathname
         }?room=${encodeURIComponent(assignedID)}`;
@@ -196,7 +207,8 @@ window.addEventListener("DOMContentLoaded", () => {
     activeCalls.push(call);
     activePeers[call.peer] = call;
 
-    call.on("stream", (remoteStream) => {
+    // Use 'once' to ensure the event is handled only once
+    call.once("stream", (remoteStream) => {
       console.log("Received remote stream from:", call.peer);
       const hasVideo = remoteStream && remoteStream.getVideoTracks().length > 0;
 
@@ -211,6 +223,11 @@ window.addEventListener("DOMContentLoaded", () => {
         remoteVideo.autoplay = true;
         remoteVideo.playsInline = true;
         remoteVideo.srcObject = remoteStream;
+        remoteVideo.onloadedmetadata = () => {
+          remoteVideo.play().catch((err) => {
+            console.error("Error playing remote video:", err);
+          });
+        };
         participantDiv.appendChild(remoteVideo);
         console.log(`Displaying video stream from peer: ${call.peer}`);
       } else {
@@ -225,14 +242,14 @@ window.addEventListener("DOMContentLoaded", () => {
       videoGrid.appendChild(participantDiv);
     });
 
-    call.on("close", () => {
+    call.once("close", () => {
       console.log("Call with peer", call.peer, "has been closed.");
       activeCalls = activeCalls.filter((c) => c !== call);
       delete activePeers[call.peer];
       removeParticipant(call.peer);
     });
 
-    call.on("error", (err) => {
+    call.once("error", (err) => {
       console.error("Call Error with peer", call.peer, ":", err);
       alert(`Error with call peer: ${call.peer}`);
     });
