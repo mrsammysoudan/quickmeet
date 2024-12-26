@@ -101,14 +101,14 @@ window.addEventListener("DOMContentLoaded", () => {
       }
     });
 
-    // OLD-STYLE LOGIC FOR INCOMING CALLS
+    // OLD-STYLE INCOMING CALL LOGIC
     peer.on("call", (incomingCall) => {
       console.log(
         "[DEBUG] Old-style logic: incoming call from:",
         incomingCall.peer
       );
 
-      // Always answer with localStream if we have it, or null if camera wasn't started
+      // Always answer with localStream if we have it, or null if we never started the camera
       incomingCall.answer(localStream || null);
 
       // Once we get the remote stream...
@@ -118,7 +118,7 @@ window.addEventListener("DOMContentLoaded", () => {
           incomingCall.peer
         );
 
-        // Check if the remote side actually has a video track
+        // Check if the remote side has a video track
         const hasVideo =
           remoteStream && remoteStream.getVideoTracks().length > 0;
 
@@ -133,7 +133,7 @@ window.addEventListener("DOMContentLoaded", () => {
           videoGrid.appendChild(participantDiv);
         }
 
-        // Clear existing elements (video/poster) from participantDiv
+        // Clear any existing elements (video/poster) inside participantDiv
         participantDiv.innerHTML = "";
 
         if (hasVideo) {
@@ -157,8 +157,7 @@ window.addEventListener("DOMContentLoaded", () => {
           // Display a placeholder if no video track
           const placeholder = document.createElement("div");
           placeholder.classList.add("poster");
-          // Optionally set text to their first letter:
-          // placeholder.textContent = incomingCall.peer.charAt(0).toUpperCase();
+          // Optionally: placeholder.textContent = incomingCall.peer.charAt(0).toUpperCase();
           participantDiv.appendChild(placeholder);
         }
       });
