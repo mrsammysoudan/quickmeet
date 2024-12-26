@@ -736,6 +736,10 @@ window.addEventListener("DOMContentLoaded", () => {
         "[DEBUG] Added 'screen-sharing' class to local video container."
       );
 
+      // Add 'screen-sharing-active' class to video grid to adjust layout
+      videoGrid.classList.add("screen-sharing-active");
+      console.log("[DEBUG] Added 'screen-sharing-active' class to video grid.");
+
       // Listen for the end of screen sharing
       screenVideoTrack.onended = () => {
         console.log("[DEBUG] Screen sharing ended.");
@@ -775,6 +779,12 @@ window.addEventListener("DOMContentLoaded", () => {
       localBlock.classList.remove("screen-sharing");
       console.log(
         "[DEBUG] Removed 'screen-sharing' class from local video container."
+      );
+
+      // Remove 'screen-sharing-active' class from video grid to adjust layout
+      videoGrid.classList.remove("screen-sharing-active");
+      console.log(
+        "[DEBUG] Removed 'screen-sharing-active' class from video grid."
       );
 
       // Change the Share Screen button icon back
