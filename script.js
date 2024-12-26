@@ -174,7 +174,7 @@ window.addEventListener("DOMContentLoaded", () => {
           // Display a placeholder if no video track
           const placeholder = document.createElement("div");
           placeholder.classList.add("poster");
-          // Optionally: placeholder.textContent = incomingCall.peer.charAt(0).toUpperCase();
+          placeholder.textContent = incomingCall.peer.charAt(0).toUpperCase(); // Optional: display first letter
           participantDiv.appendChild(placeholder);
         }
       });
@@ -295,7 +295,69 @@ window.addEventListener("DOMContentLoaded", () => {
         "[DEBUG] Participant's own call received remote stream:",
         remoteStream
       );
-      // Not necessary for participant in a two-party call, but kept for completeness
+
+      // Check if the remote side actually has a video track
+      const hasVideo = remoteStream && remoteStream.getVideoTracks().length > 0;
+
+      console.log("[DEBUG] Remote hasVideo:", hasVideo);
+
+      // Create (or reuse) a container in the videoGrid for the host
+      let participantDiv = document.querySelector(`[data-peer-id="host"]`);
+      if (!participantDiv) {
+        participantDiv = document.createElement("div");
+        participantDiv.classList.add("video-container");
+        participantDiv.setAttribute("data-peer-id", "host");
+        videoGrid.appendChild(participantDiv);
+      }
+
+      // Clear any existing elements (video/poster) inside participantDiv
+      participantDiv.innerHTML = "";
+
+      if (hasVideo) {
+        // Show remote video
+        const remoteVideo = document.createElement("video");
+        remoteVideo.srcObject = remoteStream;
+        remoteVideo.autoplay = true;
+        remoteVideo.playsInline = true;
+        remoteVideo.muted = true; // To allow autoplay on some browsers
+        remoteVideo.style.display = "block";
+
+        remoteVideo.onloadedmetadata = () => {
+          console.log(
+            "[DEBUG] Remote video metadata loaded; attempting playback..."
+          );
+          remoteVideo
+            .play()
+            .then(() => {
+              console.log("[DEBUG] Remote video playback started.");
+              console.log(
+                `[DEBUG] Remote video dimensions: width=${remoteVideo.videoWidth}, height=${remoteVideo.videoHeight}`
+              );
+            })
+            .catch((err) => {
+              console.error("[DEBUG] Remote video play error:", err);
+            });
+        };
+
+        // Add an event listener to log video dimensions once the video starts playing
+        remoteVideo.addEventListener("playing", () => {
+          console.log(
+            `[DEBUG] Remote video is playing: width=${remoteVideo.videoWidth}, height=${remoteVideo.videoHeight}`
+          );
+        });
+
+        participantDiv.appendChild(remoteVideo);
+      } else {
+        // Display a placeholder if no video track
+        const placeholder = document.createElement("div");
+        placeholder.classList.add("poster");
+        placeholder.textContent = "Host"; // Or any other identifier
+        participantDiv.appendChild(placeholder);
+      }
+
+      // Optionally, add this peer to activePeers
+      activePeers["host"] = call;
+      activeCalls.push(call);
     });
 
     call.on("error", (err) => {
@@ -305,6 +367,8 @@ window.addEventListener("DOMContentLoaded", () => {
 
     call.on("close", () => {
       console.log("[DEBUG] Participant call closed with host.");
+      // Remove host video
+      removeParticipant("host");
     });
 
     activeCalls.push(call);
