@@ -208,9 +208,10 @@ main {
 
 /* 🆕 Added Condition for Screen Sharing Active */
 .video-grid.screen-sharing-active {
-  grid-template-columns: 1fr; /* Single column layout */
-  grid-template-rows: 1fr auto; /* First row for shared screen, others for participants */
-  gap: 20px; /* Increased gap for better spacing */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
 }
 
 /***************************************************
