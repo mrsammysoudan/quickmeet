@@ -7,7 +7,7 @@
  *   - Immediate media permissions only after joining
  *   - Screen Sharing Fix for Host
  *   - Click to Enlarge Shared Screen
- *   - Local Chat Feature
+ *   - Local Chat Feature with Real-Time Messaging
  ************************************************/
 
 window.addEventListener("DOMContentLoaded", () => {
@@ -30,7 +30,7 @@ window.addEventListener("DOMContentLoaded", () => {
   const videoGrid = document.getElementById("videoGrid");
   const remoteAudioContainer = document.getElementById("remoteAudioContainer"); // Container for remote audios
 
-  const shareScreenBtn = document.getElementById("shareScreenBtn"); // 🆕 Share Screen Button
+  const shareScreenBtn = document.getElementById("shareScreenBtn"); // Share Screen Button
 
   // New Chat Elements
   const chatContainer = document.getElementById("chatContainer");
@@ -53,6 +53,7 @@ window.addEventListener("DOMContentLoaded", () => {
   let currentRoomId = null; // The room ID (host's PeerJS ID)
   let hasCalledHost = false; // Flag to prevent multiple call attempts
   const activePeers = {}; // Track active peers to prevent duplicates
+  let isScreenSharing = false; // Flag to track screen sharing state
 
   // By default, show the lobby, hide the meeting
   lobbySection.style.display = "block";
@@ -317,12 +318,6 @@ window.addEventListener("DOMContentLoaded", () => {
       localVideo.onclick = () => {
         toggleEnlargeVideo(localVideo);
       };
-
-      // If host, call all existing participants (if any)
-      if (isHost && currentRoomId) {
-        // Implement logic to handle existing participants if applicable
-        // For simplicity, assuming participants join after host starts
-      }
     } catch (err) {
       console.warn("[DEBUG] Error accessing camera/microphone:", err);
       alert(
@@ -670,6 +665,7 @@ window.addEventListener("DOMContentLoaded", () => {
       screenStream.getTracks().forEach((track) => track.stop());
       screenStream = null;
       screenVideoTrack = null;
+      isScreenSharing = false;
     }
 
     // Remove all remote audio elements
@@ -713,7 +709,6 @@ window.addEventListener("DOMContentLoaded", () => {
    * Function to Handle Remote Stream and Audio Routing
    ************************************************/
   async function handleRemoteStream(remoteStream, peerId) {
-    // 🆕 Added peerId parameter
     // Create a new audio element for each remote stream
     const audio = document.createElement("audio");
     audio.id = `remoteAudio-${peerId}`; // Unique ID for each audio element
@@ -739,7 +734,7 @@ window.addEventListener("DOMContentLoaded", () => {
         navigator.userAgent
       );
     if (isMobile) {
-      await setAudioToSpeaker(audio); // 🆕 Pass the specific audio element
+      await setAudioToSpeaker(audio); // Pass the specific audio element
     }
   }
 
@@ -747,7 +742,7 @@ window.addEventListener("DOMContentLoaded", () => {
    * Function to Remove Remote Audio Element
    ************************************************/
   function removeRemoteAudio(peerId) {
-    // 🆕 Function to remove audio element
+    // Function to remove audio element
     const audio = document.getElementById(`remoteAudio-${peerId}`);
     if (audio) {
       audio.srcObject = null;
@@ -762,7 +757,7 @@ window.addEventListener("DOMContentLoaded", () => {
    * Function to Set Audio Output to Speaker on Mobile
    ************************************************/
   async function setAudioToSpeaker(audioElement) {
-    // 🆕 Accept specific audio element
+    // Accept specific audio element
     if (typeof audioElement.setSinkId !== "undefined") {
       try {
         await audioElement.setSinkId("default");
@@ -780,18 +775,16 @@ window.addEventListener("DOMContentLoaded", () => {
    * Share Screen Button
    ************************************************/
   shareScreenBtn.onclick = async () => {
-    // 🆕 Add event listener
     if (!localStream) {
       alert("Please start your camera before sharing your screen.");
       return;
     }
 
-    // Check if already sharing the screen
-    if (screenStream) {
+    if (isScreenSharing) {
       console.log(
         "[DEBUG] Screen sharing is already active. Attempting to stop."
       );
-      stopScreenShare();
+      await stopScreenShare();
       return;
     }
 
@@ -812,11 +805,6 @@ window.addEventListener("DOMContentLoaded", () => {
       screenVideoTrack = screenStream.getVideoTracks()[0];
       console.log(
         `[DEBUG] Screen video track obtained: label=${screenVideoTrack.label}, enabled=${screenVideoTrack.enabled}`
-      );
-
-      // Add debugging to check screenVideoTrack
-      console.log(
-        `[DEBUG] Sharing screen with track ID: ${screenVideoTrack.id}`
       );
 
       // Replace video track in all active calls with screenVideoTrack
@@ -847,10 +835,14 @@ window.addEventListener("DOMContentLoaded", () => {
 
       // Add the 'screen-sharing' class to enlarge the shared screen
       const localBlock = document.getElementById("localBlock");
-      localBlock.classList.add("screen-sharing");
-      console.log(
-        "[DEBUG] Added 'screen-sharing' class to local video container."
-      );
+      if (localBlock) {
+        localBlock.classList.add("screen-sharing");
+        console.log(
+          "[DEBUG] Added 'screen-sharing' class to local video container."
+        );
+      } else {
+        console.warn("[DEBUG] 'localBlock' element not found.");
+      }
 
       // Add 'screen-sharing-active' class to video grid to adjust layout
       videoGrid.classList.add("screen-sharing-active");
@@ -868,6 +860,9 @@ window.addEventListener("DOMContentLoaded", () => {
       console.log(
         "[DEBUG] Share Screen button updated to 'Stop Sharing' icon."
       );
+
+      // Update screen sharing state
+      isScreenSharing = true;
     } catch (err) {
       console.error("[DEBUG] Error sharing the screen:", err);
       alert("Failed to share the screen.");
@@ -878,7 +873,6 @@ window.addEventListener("DOMContentLoaded", () => {
    * Function to Stop Screen Sharing
    ************************************************/
   async function stopScreenShare() {
-    // 🆕 Function to revert back to camera
     try {
       if (!screenStream) {
         console.warn("[DEBUG] No active screen sharing to stop.");
@@ -915,10 +909,14 @@ window.addEventListener("DOMContentLoaded", () => {
 
       // Remove the 'screen-sharing' class to return to normal size
       const localBlock = document.getElementById("localBlock");
-      localBlock.classList.remove("screen-sharing");
-      console.log(
-        "[DEBUG] Removed 'screen-sharing' class from local video container."
-      );
+      if (localBlock) {
+        localBlock.classList.remove("screen-sharing");
+        console.log(
+          "[DEBUG] Removed 'screen-sharing' class from local video container."
+        );
+      } else {
+        console.warn("[DEBUG] 'localBlock' element not found.");
+      }
 
       // Remove 'screen-sharing-active' class from video grid to adjust layout
       videoGrid.classList.remove("screen-sharing-active");
@@ -941,6 +939,9 @@ window.addEventListener("DOMContentLoaded", () => {
       console.log(
         "[DEBUG] Share Screen button updated back to 'Share Screen' icon."
       );
+
+      // Update screen sharing state
+      isScreenSharing = false;
     } catch (err) {
       console.error("[DEBUG] Error stopping screen share:", err);
       alert("Failed to stop screen sharing.");
@@ -951,7 +952,7 @@ window.addEventListener("DOMContentLoaded", () => {
    * Helper Function to Get Video Senders
    ************************************************/
   function getVideoSenders() {
-    // 🆕 Helper to find all video senders in active calls
+    // Helper to find all video senders in active calls
     const senders = [];
     activeCalls.forEach((call) => {
       const sender = call.peerConnection
