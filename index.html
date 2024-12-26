@@ -45,15 +45,40 @@
 
       <!-- MEETING SECTION (hidden initially) -->
       <div id="meetingSection" class="meeting-section" style="display: none">
-        <div class="video-grid" id="videoGrid">
-          <!-- LOCAL USER BLOCK -->
-          <div class="video-container" id="localBlock" data-peer-id="local">
-            <!-- Placeholder (Letter) -->
-            <div id="localPoster" class="poster"></div>
-            <!-- Local Video (Hidden initially) -->
-            <video id="localVideo" autoplay muted playsinline></video>
+        <div class="meeting-content">
+          <!-- VIDEO GRID -->
+          <div class="video-grid" id="videoGrid">
+            <!-- LOCAL USER BLOCK -->
+            <div class="video-container" id="localBlock" data-peer-id="local">
+              <!-- Placeholder (Letter) -->
+              <div id="localPoster" class="poster"></div>
+              <!-- Local Video (Hidden initially) -->
+              <video id="localVideo" autoplay muted playsinline></video>
+            </div>
+            <!-- Remote Participants will be appended directly here -->
           </div>
-          <!-- Remote Participants will be appended directly here -->
+
+          <!-- CHAT AREA (Added) -->
+          <div id="chatContainer" class="chat-container">
+            <div id="chatHeader" class="chat-header">
+              <h2>Chat</h2>
+            </div>
+            <div id="chatMessages" class="chat-messages"></div>
+            <div class="chat-input-section">
+              <input
+                type="text"
+                id="chatInput"
+                placeholder="Type a message..."
+              />
+              <button
+                id="sendChatBtn"
+                class="chat-send-btn"
+                title="Send Message"
+              >
+                <i class="fas fa-paper-plane"></i>
+              </button>
+            </div>
+          </div>
         </div>
 
         <!-- BOTTOM CONTROLS -->
@@ -70,7 +95,7 @@
           <button id="shareScreenBtn" class="control-btn" title="Share Screen">
             <i class="fas fa-desktop"></i>
           </button>
-          <!-- End of Added Share Screen Button -->
+          <!-- End of Share Screen Button -->
 
           <button
             id="leaveBtn"

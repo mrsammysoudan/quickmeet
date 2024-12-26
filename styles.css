@@ -135,9 +135,19 @@ main {
 }
 
 /***************************************************
+ * MEETING CONTENT
+ ****************************************************/
+.meeting-content {
+  display: flex;
+  width: 100%;
+  gap: 20px;
+}
+
+/***************************************************
  * VIDEO GRID
  ****************************************************/
 .video-grid {
+  flex: 3;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 16px;
@@ -164,6 +174,8 @@ main {
   height: 100%;
   object-fit: cover;
   display: block;
+  cursor: pointer; /* Indicate clickable */
+  transition: transform 0.3s ease-in-out;
 }
 
 .poster {
@@ -180,9 +192,75 @@ main {
 }
 
 /***************************************************
+ * CHAT CONTAINER (Added)
+ ****************************************************/
+.chat-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid #ccc;
+  background-color: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.chat-header {
+  background-color: #1a73e8;
+  color: #fff;
+  padding: 10px;
+  text-align: center;
+}
+
+.chat-messages {
+  flex: 1;
+  padding: 10px;
+  overflow-y: auto;
+  background-color: #f1f3f4;
+}
+
+.chat-input-section {
+  display: flex;
+  padding: 10px;
+  border-top: 1px solid #ccc;
+}
+
+.chat-input-section input {
+  flex: 1;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.chat-send-btn {
+  background-color: #1a73e8;
+  border: none;
+  color: #fff;
+  padding: 8px 12px;
+  margin-left: 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+}
+.chat-send-btn:hover {
+  background-color: #1765c1;
+}
+
+.chat-message {
+  margin-bottom: 10px;
+}
+
+.chat-sender {
+  font-weight: bold;
+  margin-right: 5px;
+}
+
+.chat-text {
+  word-wrap: break-word;
+}
+
+/***************************************************
  * SCREEN SHARING MODIFICATIONS
  ****************************************************/
-
 .screen-sharing {
   grid-column: 1 / -1; /* Span all columns */
   grid-row: 1 / -1; /* Span all rows */
@@ -204,51 +282,26 @@ main {
   box-shadow: none; /* Optional: remove shadows for full screen appearance */
 }
 
-/* 🆕 Added Condition for Screen Sharing Active */
+.enlarged {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  width: 80%;
+  height: auto;
+  transform: translate(-50%, -50%);
+  z-index: 1000;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+  border-radius: 8px;
+}
+
+/***************************************************
+ * VIDEO GRID SCREEN SHARING ACTIVE CONDITION (Added)
+ ****************************************************/
 .video-grid.screen-sharing-active {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 20px;
-}
-
-/***************************************************
- * LOCAL VIDEO CONTAINER
- ****************************************************/
-.local-video-container {
-  position: fixed;
-  bottom: 100px; /* Adjust as needed */
-  left: 50%;
-  transform: translateX(-50%);
-  width: 300px;
-  height: 200px;
-  background-color: #000;
-  border: 2px solid #1a73e8;
-  border-radius: 8px;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.local-video-container video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-.poster {
-  width: 100%;
-  height: 100%;
-  background-color: #dadce0;
-  color: #5f6368;
-  font-size: 100px;
-  text-align: center;
-  font-weight: bold;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 /***************************************************
@@ -292,25 +345,19 @@ main {
 }
 
 /***************************************************
- * SCREEN SHARING MODIFICATIONS (Transitions)
- ****************************************************/
-
-/* 🆕 Added transitions for smooth resizing */
-.screen-sharing {
-  transition: all 0.3s ease-in-out;
-}
-
-.screen-sharing video {
-  transition: all 0.3s ease-in-out;
-}
-
-/***************************************************
- * RESPONSIVE
+ * RESPONSIVE DESIGN
  ****************************************************/
 @media (max-width: 1200px) {
-  .screen-sharing {
-    grid-column: 1 / -1;
-    grid-row: 1 / -1;
+  .meeting-content {
+    flex-direction: row;
+  }
+
+  .chat-container {
+    flex: 1;
+  }
+
+  .video-grid {
+    flex: 2;
   }
 }
 
@@ -318,11 +365,15 @@ main {
   .video-grid {
     grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
   }
+
+  .chat-container {
+    display: none; /* Hide chat on smaller screens if desired */
+  }
 }
 
 @media (max-width: 800px) {
-  .screen-sharing {
-    grid-template-columns: 1fr; /* Adjust grid for smaller screens */
+  .video-grid {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   }
 }
 
@@ -350,8 +401,11 @@ main {
     font-size: 1rem;
   }
 
-  .local-video-container {
-    width: 200px;
-    height: 112px; /* Adjust based on aspect ratio */
+  .chat-container {
+    display: none; /* Ensure chat is hidden on very small screens */
+  }
+
+  .enlarged {
+    width: 95%;
   }
 }
