@@ -45,6 +45,9 @@ window.addEventListener("DOMContentLoaded", () => {
   // App State
   let peer = null; // Our PeerJS instance
   let localStream = null; // Our local media stream
+  let cameraVideoTrack = null; // Reference to the camera video track
+  let screenStream = null; // Reference to the screen sharing stream
+  let screenVideoTrack = null; // Reference to the screen video track
   let activeCalls = []; // Keep track of active calls
   let isHost = null; // Determine if user is host
   let currentRoomId = null; // The room ID (host's PeerJS ID)
@@ -111,21 +114,22 @@ window.addEventListener("DOMContentLoaded", () => {
       }
     });
 
-    // OLD-STYLE LOGIC FOR INCOMING CALLS (Host Side)
+    // Handle incoming calls (Host Side)
     peer.on("call", (incomingCall) => {
       console.log(
-        "[DEBUG] Old-style logic: incoming call from:",
-        incomingCall.peer
+        `[DEBUG] Incoming call from participant ID: ${incomingCall.peer}`
       );
 
       // Always answer with localStream if we have it, or null if camera wasn't started
       incomingCall.answer(localStream || null);
+      console.log(
+        `[DEBUG] Answered call from participant ID: ${incomingCall.peer}`
+      );
 
       // Once we get the remote stream...
       incomingCall.on("stream", (remoteStream) => {
         console.log(
-          "[DEBUG] Old-style logic: got remote stream from:",
-          incomingCall.peer
+          `[DEBUG] Received remote stream from participant ID: ${incomingCall.peer}`
         );
 
         // Handle remote stream (for audio routing)
@@ -135,10 +139,12 @@ window.addEventListener("DOMContentLoaded", () => {
         const hasVideo =
           remoteStream && remoteStream.getVideoTracks().length > 0;
 
-        console.log("[DEBUG] Remote hasVideo:", hasVideo);
+        console.log(
+          `[DEBUG] Participant ID: ${incomingCall.peer} has video: ${hasVideo}`
+        );
 
         if (hasVideo) {
-          // Create (or reuse) a container in the videoGrid for this peer
+          // Create (or reuse) a container in the videoGrid for this participant
           let participantDiv = document.querySelector(
             `[data-peer-id="${incomingCall.peer}"]`
           );
@@ -147,6 +153,9 @@ window.addEventListener("DOMContentLoaded", () => {
             participantDiv.classList.add("video-container");
             participantDiv.setAttribute("data-peer-id", incomingCall.peer);
             videoGrid.appendChild(participantDiv);
+            console.log(
+              `[DEBUG] Created video container for participant ID: ${incomingCall.peer}`
+            );
           }
 
           // Clear any existing elements (video/poster) inside participantDiv
@@ -173,25 +182,30 @@ window.addEventListener("DOMContentLoaded", () => {
 
           remoteVideo.onloadedmetadata = () => {
             console.log(
-              "[DEBUG] Remote video metadata loaded; attempting playback..."
+              `[DEBUG] Remote video metadata loaded for participant ID: ${incomingCall.peer}`
             );
             remoteVideo
               .play()
               .then(() => {
-                console.log("[DEBUG] Remote video playback started.");
+                console.log(
+                  `[DEBUG] Remote video playback started for participant ID: ${incomingCall.peer}`
+                );
                 console.log(
                   `[DEBUG] Remote video dimensions: width=${remoteVideo.videoWidth}, height=${remoteVideo.videoHeight}`
                 );
               })
               .catch((err) => {
-                console.error("[DEBUG] Remote video play error:", err);
+                console.error(
+                  `[DEBUG] Remote video play error for participant ID: ${incomingCall.peer}:`,
+                  err
+                );
               });
           };
 
           // Add an event listener to log video dimensions once the video starts playing
           remoteVideo.addEventListener("playing", () => {
             console.log(
-              `[DEBUG] Remote video is playing: width=${remoteVideo.videoWidth}, height=${remoteVideo.videoHeight}`
+              `[DEBUG] Remote video is playing for participant ID: ${incomingCall.peer}: width=${remoteVideo.videoWidth}, height=${remoteVideo.videoHeight}`
             );
           });
 
@@ -202,14 +216,16 @@ window.addEventListener("DOMContentLoaded", () => {
           placeholder.classList.add("poster");
           placeholder.textContent = incomingCall.peer.charAt(0).toUpperCase(); // Optional: display first letter
           participantDiv.appendChild(placeholder);
+          console.log(
+            `[DEBUG] Displayed placeholder for participant ID: ${incomingCall.peer}`
+          );
         }
       });
 
       // Cleanup if the call ends
       incomingCall.on("close", () => {
         console.log(
-          "[DEBUG] Old-style logic: call closed with:",
-          incomingCall.peer
+          `[DEBUG] Call closed with participant ID: ${incomingCall.peer}`
         );
         removeParticipant(incomingCall.peer);
         removeRemoteAudio(incomingCall.peer); // 🆕 Remove corresponding audio
@@ -217,7 +233,10 @@ window.addEventListener("DOMContentLoaded", () => {
 
       // Handle errors
       incomingCall.on("error", (err) => {
-        console.error("[DEBUG] Old-style logic: call error:", err);
+        console.error(
+          `[DEBUG] Call error with participant ID: ${incomingCall.peer}:`,
+          err
+        );
         alert("Call error with peer " + incomingCall.peer + ": " + err);
         removeParticipant(incomingCall.peer);
         removeRemoteAudio(incomingCall.peer); // 🆕 Remove corresponding audio
@@ -268,10 +287,16 @@ window.addEventListener("DOMContentLoaded", () => {
       localStream = await navigator.mediaDevices.getUserMedia(constraints);
       console.log("[DEBUG] Media permissions granted.");
 
+      // Store the camera video track
+      cameraVideoTrack = localStream.getVideoTracks()[0];
+      console.log(
+        `[DEBUG] Camera video track obtained: label=${cameraVideoTrack.label}, enabled=${cameraVideoTrack.enabled}`
+      );
+
       // Log track info for debugging
       localStream.getTracks().forEach((track) => {
         console.log(
-          `[DEBUG] local track kind="${track.kind}" enabled=${track.enabled}`
+          `[DEBUG] local track kind="${track.kind}" label="${track.label}" enabled=${track.enabled}`
         );
       });
 
@@ -346,6 +371,7 @@ window.addEventListener("DOMContentLoaded", () => {
           participantDiv.classList.add("video-container");
           participantDiv.setAttribute("data-peer-id", "host");
           videoGrid.appendChild(participantDiv);
+          console.log(`[DEBUG] Created video container for host.`);
         }
 
         // Clear any existing elements (video/poster) inside participantDiv
@@ -401,11 +427,13 @@ window.addEventListener("DOMContentLoaded", () => {
         placeholder.classList.add("poster");
         placeholder.textContent = "Host"; // Or any other identifier
         participantDiv.appendChild(placeholder);
+        console.log(`[DEBUG] Displayed placeholder for host.`);
       }
 
       // Optionally, add this peer to activePeers
       activePeers["host"] = call;
       activeCalls.push(call);
+      console.log(`[DEBUG] Added host call to activeCalls.`);
     });
 
     call.on("error", (err) => {
@@ -421,6 +449,7 @@ window.addEventListener("DOMContentLoaded", () => {
     });
 
     activeCalls.push(call);
+    console.log(`[DEBUG] Added host call to activeCalls.`);
   }
 
   /************************************************
@@ -538,9 +567,11 @@ window.addEventListener("DOMContentLoaded", () => {
     if (videoTrack.enabled) {
       localVideo.style.display = "block";
       localPoster.style.display = "none";
+      console.log("[DEBUG] Local video displayed.");
     } else {
       localVideo.style.display = "none";
       showLocalPlaceholder();
+      console.log("[DEBUG] Local video hidden. Placeholder displayed.");
     }
   };
 
@@ -619,6 +650,14 @@ window.addEventListener("DOMContentLoaded", () => {
       localStream.getTracks().forEach((track) => track.stop());
     }
 
+    // Stop screen sharing if active
+    if (screenStream) {
+      console.log("Stopping active screen sharing before leaving.");
+      screenStream.getTracks().forEach((track) => track.stop());
+      screenStream = null;
+      screenVideoTrack = null;
+    }
+
     // Remove all remote audio elements
     const audioElements = document.querySelectorAll("[id^='remoteAudio-']");
     audioElements.forEach((audio) => {
@@ -648,6 +687,7 @@ window.addEventListener("DOMContentLoaded", () => {
       .writeText(link)
       .then(() => {
         alert("Meeting link copied to clipboard!");
+        console.log("[DEBUG] Meeting link copied to clipboard.");
       })
       .catch((err) => {
         console.error("Failed to copy meeting link:", err);
@@ -669,6 +709,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
     // Append the audio element to the body
     document.body.appendChild(audio);
+    console.log(`[DEBUG] Added remote audio element for peer: ${peerId}`);
 
     // Attempt to play the audio
     try {
@@ -732,14 +773,10 @@ window.addEventListener("DOMContentLoaded", () => {
     }
 
     // Check if already sharing the screen
-    if (
-      localStream
-        .getVideoTracks()
-        .some(
-          (track) => track.kind === "video" && track.label.includes("screen")
-        )
-    ) {
-      // Currently sharing screen, so stop sharing
+    if (screenStream) {
+      console.log(
+        "[DEBUG] Screen sharing is already active. Attempting to stop."
+      );
       stopScreenShare();
       return;
     }
@@ -751,15 +788,24 @@ window.addEventListener("DOMContentLoaded", () => {
 
     try {
       // Capture the screen with optional audio
-      const screenStream = await navigator.mediaDevices.getDisplayMedia({
+      screenStream = await navigator.mediaDevices.getDisplayMedia({
         video: true,
         audio: shareAudio,
       });
+      console.log("[DEBUG] Screen stream obtained.");
 
       // Get the screen video track
-      const screenVideoTrack = screenStream.getVideoTracks()[0];
+      screenVideoTrack = screenStream.getVideoTracks()[0];
+      console.log(
+        `[DEBUG] Screen video track obtained: label=${screenVideoTrack.label}, enabled=${screenVideoTrack.enabled}`
+      );
 
-      // 🛠️ **Fix Start Here**: Replace video track for **ALL** active calls
+      // Add debugging to check screenVideoTrack
+      console.log(
+        `[DEBUG] Sharing screen with track ID: ${screenVideoTrack.id}`
+      );
+
+      // Replace video track in all active calls with screenVideoTrack
       activeCalls.forEach((call) => {
         const sender = call.peerConnection
           .getSenders()
@@ -780,10 +826,10 @@ window.addEventListener("DOMContentLoaded", () => {
             });
         }
       });
-      // 🛠️ **Fix End Here**
 
       // Update the local video element to display the screen
       localVideo.srcObject = screenStream;
+      console.log("[DEBUG] Local video source updated to screen stream.");
 
       // Add the 'screen-sharing' class to enlarge the shared screen
       const localBlock = document.getElementById("localBlock");
@@ -798,13 +844,16 @@ window.addEventListener("DOMContentLoaded", () => {
 
       // Listen for the end of screen sharing
       screenVideoTrack.onended = () => {
-        console.log("[DEBUG] Screen sharing ended.");
+        console.log("[DEBUG] Screen sharing ended via onended event.");
         stopScreenShare();
       };
 
       // Change the Share Screen button icon to indicate active sharing
       shareScreenBtn.innerHTML = '<i class="fas fa-stop"></i>';
       shareScreenBtn.title = "Stop Sharing";
+      console.log(
+        "[DEBUG] Share Screen button updated to 'Stop Sharing' icon."
+      );
     } catch (err) {
       console.error("[DEBUG] Error sharing the screen:", err);
       alert("Failed to share the screen.");
@@ -817,15 +866,19 @@ window.addEventListener("DOMContentLoaded", () => {
   async function stopScreenShare() {
     // 🆕 Function to revert back to camera
     try {
-      // Get the camera video track
-      const cameraVideoTrack = localStream.getVideoTracks()[0];
+      if (!screenStream) {
+        console.warn("[DEBUG] No active screen sharing to stop.");
+        return;
+      }
 
-      // 🛠️ **Fix Start Here**: Replace video track for **ALL** active calls
+      console.log("[DEBUG] Attempting to stop screen sharing.");
+
+      // Replace screenVideoTrack with cameraVideoTrack in all active calls
       activeCalls.forEach((call) => {
         const sender = call.peerConnection
           .getSenders()
           .find((s) => s.track && s.track.kind === "video");
-        if (sender) {
+        if (sender && cameraVideoTrack) {
           sender
             .replaceTrack(cameraVideoTrack)
             .then(() => {
@@ -841,10 +894,10 @@ window.addEventListener("DOMContentLoaded", () => {
             });
         }
       });
-      // 🛠️ **Fix End Here**
 
-      // Update the local video element to display the camera
+      // Restore the local video element to display the camera
       localVideo.srcObject = localStream;
+      console.log("[DEBUG] Local video source restored to camera stream.");
 
       // Remove the 'screen-sharing' class to return to normal size
       const localBlock = document.getElementById("localBlock");
@@ -859,9 +912,21 @@ window.addEventListener("DOMContentLoaded", () => {
         "[DEBUG] Removed 'screen-sharing-active' class from video grid."
       );
 
+      // Stop all tracks of the screen stream to release resources
+      screenStream.getTracks().forEach((track) => track.stop());
+      console.log("[DEBUG] Stopped all tracks of the screen stream.");
+
+      // Clear screenStream and screenVideoTrack references
+      screenStream = null;
+      screenVideoTrack = null;
+      console.log("[DEBUG] Cleared screen stream references.");
+
       // Change the Share Screen button icon back
       shareScreenBtn.innerHTML = '<i class="fas fa-desktop"></i>';
       shareScreenBtn.title = "Share Screen";
+      console.log(
+        "[DEBUG] Share Screen button updated back to 'Share Screen' icon."
+      );
     } catch (err) {
       console.error("[DEBUG] Error stopping screen share:", err);
       alert("Failed to stop screen sharing.");
@@ -891,6 +956,7 @@ window.addEventListener("DOMContentLoaded", () => {
   function toggleEnlargeVideo(videoElement) {
     if (videoElement.classList.contains("enlarged")) {
       videoElement.classList.remove("enlarged");
+      console.log("[DEBUG] Enlarged video minimized.");
     } else {
       // Remove 'enlarged' class from any other videos
       const allVideos = videoGrid.querySelectorAll("video");
@@ -898,6 +964,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
       // Add 'enlarged' class to the clicked video
       videoElement.classList.add("enlarged");
+      console.log("[DEBUG] Enlarged video maximized.");
     }
   }
 
@@ -911,6 +978,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
     // Display the message in the chat area
     appendChatMessage("You", message);
+    console.log(`[DEBUG] Sent chat message: "${message}"`);
 
     // Clear the input field
     chatInput.value = "";
@@ -938,6 +1006,8 @@ window.addEventListener("DOMContentLoaded", () => {
     messageDiv.appendChild(senderSpan);
     messageDiv.appendChild(messageSpan);
     chatMessages.appendChild(messageDiv);
+
+    console.log(`[DEBUG] Appended chat message from "${sender}": "${message}"`);
 
     // Scroll to the bottom
     chatMessages.scrollTop = chatMessages.scrollHeight;
