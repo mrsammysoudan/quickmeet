@@ -39,13 +39,13 @@ window.addEventListener("DOMContentLoaded", () => {
   let hasCalledHost = false; // Flag to prevent multiple call attempts
   const activePeers = {}; // Track active peers to prevent duplicates
 
-  /************************************************
-   * Hide/Show UI based on whether we have ?room=...
-   ************************************************/
   // By default, show the lobby, hide the meeting
   lobbySection.style.display = "block";
   meetingSection.style.display = "none";
 
+  /************************************************
+   * Decide if user is joining (participant) or hosting
+   ************************************************/
   if (roomParam) {
     // If we have ?room=..., treat this user as a participant
     isHost = false;
@@ -64,7 +64,14 @@ window.addEventListener("DOMContentLoaded", () => {
    * Initialize PeerJS
    ************************************************/
   function initializePeer() {
-    peer = new Peer();
+    // Provide a config object with an API key or server details if needed:
+    // e.g., { host: 'your-peer-server.com', port: 443, secure: true, ... }
+    // If using a local PeerJS server, ensure it's running and properly reachable.
+    peer = new Peer({
+      host: "0.peerjs.com",
+      port: 443,
+      secure: true,
+    });
 
     peer.on("open", (assignedID) => {
       console.log("PeerJS connection opened. Assigned ID:", assignedID);
