@@ -27,6 +27,8 @@ window.addEventListener("DOMContentLoaded", () => {
   const videoGrid = document.getElementById("videoGrid");
   const remoteAudio = document.getElementById("remoteAudio"); // Hidden audio element
 
+  const shareScreenBtn = document.getElementById("shareScreenBtn"); // 🆕 Share Screen Button
+
   // Parse ?room= from URL
   const urlParams = new URLSearchParams(window.location.search);
   const roomParam = urlParams.get("room");
@@ -678,4 +680,111 @@ window.addEventListener("DOMContentLoaded", () => {
       console.warn("[DEBUG] setSinkId not supported in this browser.");
     }
   }
+
+  /************************************************
+   * Share Screen Button
+   ************************************************/
+  shareScreenBtn.onclick = async () => {
+    // 🆕 Add event listener
+    if (!localStream) {
+      alert("Please start your camera before sharing your screen.");
+      return;
+    }
+
+    // Check if already sharing the screen
+    if (
+      localStream
+        .getVideoTracks()
+        .some(
+          (track) => track.kind === "video" && track.label.includes("screen")
+        )
+    ) {
+      // Currently sharing screen, so stop sharing
+      stopScreenShare();
+      return;
+    }
+
+    // Prompt the user to include audio
+    const shareAudio = confirm(
+      "Do you want to share your system audio? Click 'OK' to include audio, or 'Cancel' to share without audio."
+    );
+
+    try {
+      // Capture the screen with optional audio
+      const screenStream = await navigator.mediaDevices.getDisplayMedia({
+        video: true,
+        audio: shareAudio,
+      });
+
+      // Get the screen video track
+      const screenVideoTrack = screenStream.getVideoTracks()[0];
+
+      // Replace the current video track in localStream with the screen track
+      const sender = getVideoSender();
+      if (sender) {
+        await sender.replaceTrack(screenVideoTrack);
+        console.log("[DEBUG] Replaced video track with screen share track.");
+      }
+
+      // Update the local video element to display the screen
+      localVideo.srcObject = screenStream;
+
+      // Listen for the end of screen sharing
+      screenVideoTrack.onended = () => {
+        console.log("[DEBUG] Screen sharing ended.");
+        stopScreenShare();
+      };
+
+      // Change the Share Screen button icon to indicate active sharing
+      shareScreenBtn.innerHTML = '<i class="fas fa-stop"></i>';
+      shareScreenBtn.title = "Stop Sharing";
+    } catch (err) {
+      console.error("[DEBUG] Error sharing the screen:", err);
+      alert("Failed to share the screen.");
+    }
+  };
+
+  /************************************************
+   * Function to Stop Screen Sharing
+   ************************************************/
+  async function stopScreenShare() {
+    // 🆕 Function to revert back to camera
+    try {
+      // Get the camera video track
+      const cameraVideoTrack = localStream.getVideoTracks()[0];
+
+      // Replace the screen video track with the camera track
+      const sender = getVideoSender();
+      if (sender) {
+        await sender.replaceTrack(cameraVideoTrack);
+        console.log("[DEBUG] Replaced screen share track with camera track.");
+      }
+
+      // Update the local video element to display the camera
+      localVideo.srcObject = localStream;
+
+      // Change the Share Screen button icon back
+      shareScreenBtn.innerHTML = '<i class="fas fa-desktop"></i>';
+      shareScreenBtn.title = "Share Screen";
+    } catch (err) {
+      console.error("[DEBUG] Error stopping screen share:", err);
+      alert("Failed to stop screen sharing.");
+    }
+  }
+
+  /************************************************
+   * Helper Function to Get Video Sender
+   ************************************************/
+  function getVideoSender() {
+    // 🆕 Helper to find the video sender in active calls
+    for (let call of activeCalls) {
+      let sender = call.peerConnection
+        .getSenders()
+        .find((s) => s.track && s.track.kind === "video");
+      if (sender) return sender;
+    }
+    return null;
+  }
+
+  // ... [Rest of your existing code remains unchanged] ...
 });
