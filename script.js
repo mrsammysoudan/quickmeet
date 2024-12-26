@@ -101,12 +101,83 @@ window.addEventListener("DOMContentLoaded", () => {
       }
     });
 
-    // Listen for incoming calls
+    // OLD-STYLE LOGIC FOR INCOMING CALLS
     peer.on("call", (incomingCall) => {
-      console.log("Incoming call from:", incomingCall.peer);
-      // Answer with our local stream (if available)
+      console.log(
+        "[DEBUG] Old-style logic: incoming call from:",
+        incomingCall.peer
+      );
+
+      // Always answer with localStream if we have it, or null if camera wasn't started
       incomingCall.answer(localStream || null);
-      handleIncomingCall(incomingCall);
+
+      // Once we get the remote stream...
+      incomingCall.on("stream", (remoteStream) => {
+        console.log(
+          "[DEBUG] Old-style logic: got remote stream from:",
+          incomingCall.peer
+        );
+
+        // Check if the remote side actually has a video track
+        const hasVideo =
+          remoteStream && remoteStream.getVideoTracks().length > 0;
+
+        // Create (or reuse) a container in the videoGrid for this peer
+        let participantDiv = document.querySelector(
+          `[data-peer-id="${incomingCall.peer}"]`
+        );
+        if (!participantDiv) {
+          participantDiv = document.createElement("div");
+          participantDiv.classList.add("video-container");
+          participantDiv.setAttribute("data-peer-id", incomingCall.peer);
+          videoGrid.appendChild(participantDiv);
+        }
+
+        // Clear existing elements (video/poster) from participantDiv
+        participantDiv.innerHTML = "";
+
+        if (hasVideo) {
+          // Show remote video
+          const remoteVideo = document.createElement("video");
+          remoteVideo.srcObject = remoteStream;
+          remoteVideo.autoplay = true;
+          remoteVideo.playsInline = true;
+
+          remoteVideo.onloadedmetadata = () => {
+            console.log(
+              "[DEBUG] Remote video metadata loaded; attempting playback..."
+            );
+            remoteVideo.play().catch((err) => {
+              console.error("[DEBUG] Remote video play error:", err);
+            });
+          };
+
+          participantDiv.appendChild(remoteVideo);
+        } else {
+          // Display a placeholder if no video track
+          const placeholder = document.createElement("div");
+          placeholder.classList.add("poster");
+          // Optionally set text to their first letter:
+          // placeholder.textContent = incomingCall.peer.charAt(0).toUpperCase();
+          participantDiv.appendChild(placeholder);
+        }
+      });
+
+      // Cleanup if the call ends
+      incomingCall.on("close", () => {
+        console.log(
+          "[DEBUG] Old-style logic: call closed with:",
+          incomingCall.peer
+        );
+        removeParticipant(incomingCall.peer);
+      });
+
+      // Handle errors
+      incomingCall.on("error", (err) => {
+        console.error("[DEBUG] Old-style logic: call error:", err);
+        alert("Call error with peer " + incomingCall.peer + ": " + err);
+        removeParticipant(incomingCall.peer);
+      });
     });
 
     // Handle PeerJS errors
