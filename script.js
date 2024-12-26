@@ -729,6 +729,13 @@ window.addEventListener("DOMContentLoaded", () => {
       // Update the local video element to display the screen
       localVideo.srcObject = screenStream;
 
+      // Add the 'screen-sharing' class to enlarge the shared screen
+      const localBlock = document.getElementById("localBlock");
+      localBlock.classList.add("screen-sharing");
+      console.log(
+        "[DEBUG] Added 'screen-sharing' class to local video container."
+      );
+
       // Listen for the end of screen sharing
       screenVideoTrack.onended = () => {
         console.log("[DEBUG] Screen sharing ended.");
@@ -762,6 +769,13 @@ window.addEventListener("DOMContentLoaded", () => {
 
       // Update the local video element to display the camera
       localVideo.srcObject = localStream;
+
+      // Remove the 'screen-sharing' class to return to normal size
+      const localBlock = document.getElementById("localBlock");
+      localBlock.classList.remove("screen-sharing");
+      console.log(
+        "[DEBUG] Removed 'screen-sharing' class from local video container."
+      );
 
       // Change the Share Screen button icon back
       shareScreenBtn.innerHTML = '<i class="fas fa-desktop"></i>';
