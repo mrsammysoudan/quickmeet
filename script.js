@@ -90,6 +90,9 @@ window.addEventListener("DOMContentLoaded", () => {
    * Initialize PeerJS
    ************************************************/
   function initializePeer() {
+    // Initialize the video grid layout using Flexbox
+    initializeVideoGridLayout();
+
     // Use the default PeerJS cloud server
     peer = new Peer({
       host: "0.peerjs.com",
@@ -182,7 +185,7 @@ window.addEventListener("DOMContentLoaded", () => {
           remoteVideo.style.cursor = "pointer"; // Indicate clickable
 
           // Set default size via CSS classes
-          remoteVideo.classList.add("small-video");
+          remoteVideo.classList.add("small-video", "square-video");
 
           // Add click event to enlarge the video
           remoteVideo.onclick = () => {
@@ -264,6 +267,19 @@ window.addEventListener("DOMContentLoaded", () => {
       console.error("PeerJS Error:", err);
       alert(`PeerJS Error: ${err.type} - ${err.message}`);
     });
+  }
+
+  /************************************************
+   * Initialize Video Grid Layout
+   ************************************************/
+  function initializeVideoGridLayout() {
+    // Set videoGrid to use Flexbox with wrapping
+    videoGrid.style.display = "flex";
+    videoGrid.style.flexWrap = "wrap";
+    videoGrid.style.justifyContent = "center"; // Center videos
+    videoGrid.style.alignItems = "center"; // Center videos vertically
+    videoGrid.style.gap = "10px"; // Space between videos
+    console.log("[DEBUG] Initialized videoGrid layout with Flexbox.");
   }
 
   /************************************************
@@ -425,7 +441,7 @@ window.addEventListener("DOMContentLoaded", () => {
         remoteVideo.style.cursor = "pointer"; // Indicate clickable
 
         // Set default size via CSS classes
-        remoteVideo.classList.add("small-video");
+        remoteVideo.classList.add("small-video", "square-video");
 
         // Add click event to enlarge the video
         remoteVideo.onclick = () => {
@@ -663,7 +679,7 @@ window.addEventListener("DOMContentLoaded", () => {
    ************************************************/
   muteBtn.onclick = () => {
     if (!localStream) {
-      alert("No camera/mic to mute yet!");
+      alert("No microphone to mute yet!");
       return;
     }
 
@@ -846,7 +862,7 @@ window.addEventListener("DOMContentLoaded", () => {
    * Share Screen Button
    ************************************************/
   shareScreenBtn.onclick = async () => {
-    if (!localStream) {
+    if (!localStream && !cameraVideoTrack) {
       alert("Please start your microphone before sharing your screen.");
       return;
     }
