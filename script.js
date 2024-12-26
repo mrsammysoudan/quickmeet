@@ -5,6 +5,9 @@
  *   - Camera is optional; placeholder shown if camera is off
  *   - Mute functionality works without camera
  *   - Immediate media permissions only after joining
+ *   - Screen Sharing Fix for Host
+ *   - Click to Enlarge Shared Screen
+ *   - Local Chat Feature
  ************************************************/
 
 window.addEventListener("DOMContentLoaded", () => {
@@ -28,6 +31,12 @@ window.addEventListener("DOMContentLoaded", () => {
   const remoteAudio = document.getElementById("remoteAudio"); // Hidden audio element
 
   const shareScreenBtn = document.getElementById("shareScreenBtn"); // 🆕 Share Screen Button
+
+  // New Chat Elements
+  const chatContainer = document.getElementById("chatContainer");
+  const chatMessages = document.getElementById("chatMessages");
+  const chatInput = document.getElementById("chatInput");
+  const sendChatBtn = document.getElementById("sendChatBtn");
 
   // Parse ?room= from URL
   const urlParams = new URLSearchParams(window.location.search);
@@ -150,6 +159,17 @@ window.addEventListener("DOMContentLoaded", () => {
           remoteVideo.playsInline = true;
           remoteVideo.muted = true; // To allow autoplay on some browsers
           remoteVideo.style.display = "block";
+          remoteVideo.style.cursor = "pointer"; // Indicate clickable
+
+          // Maintain 16:9 aspect ratio (1920x1080)
+          remoteVideo.style.width = "100%";
+          remoteVideo.style.height = "auto";
+          remoteVideo.style.maxHeight = "1080px";
+
+          // Add click event to enlarge the video
+          remoteVideo.onclick = () => {
+            toggleEnlargeVideo(remoteVideo);
+          };
 
           remoteVideo.onloadedmetadata = () => {
             console.log(
@@ -280,7 +300,7 @@ window.addEventListener("DOMContentLoaded", () => {
    ************************************************/
   function showMeetingUI() {
     lobbySection.style.display = "none";
-    meetingSection.style.display = "block";
+    meetingSection.style.display = "flex"; // Changed to flex for layout
     console.log("Switched to meeting UI.");
   }
 
@@ -332,6 +352,17 @@ window.addEventListener("DOMContentLoaded", () => {
         remoteVideo.playsInline = true;
         remoteVideo.muted = true; // To allow autoplay on some browsers
         remoteVideo.style.display = "block";
+        remoteVideo.style.cursor = "pointer"; // Indicate clickable
+
+        // Maintain 16:9 aspect ratio (1920x1080)
+        remoteVideo.style.width = "100%";
+        remoteVideo.style.height = "auto";
+        remoteVideo.style.maxHeight = "1080px";
+
+        // Add click event to enlarge the video
+        remoteVideo.onclick = () => {
+          toggleEnlargeVideo(remoteVideo);
+        };
 
         remoteVideo.onloadedmetadata = () => {
           console.log(
@@ -590,6 +621,9 @@ window.addEventListener("DOMContentLoaded", () => {
       audio.remove();
     });
 
+    // Clear chat messages
+    chatMessages.innerHTML = "";
+
     // Reload the page to go back to lobby
     location.href = location.origin + location.pathname;
   };
@@ -829,10 +863,10 @@ window.addEventListener("DOMContentLoaded", () => {
   }
 
   /************************************************
-   * Helper Function to Get Video Sender
+   * Helper Function to Get Video Senders
    ************************************************/
-  function getVideoSender() {
-    // 🆕 Modified to return **all** video senders instead of just one
+  function getVideoSenders() {
+    // 🆕 Helper to find all video senders in active calls
     const senders = [];
     activeCalls.forEach((call) => {
       const sender = call.peerConnection
@@ -844,6 +878,67 @@ window.addEventListener("DOMContentLoaded", () => {
     });
     return senders;
   }
+
+  /************************************************
+   * Toggle Enlarge Video Function
+   ************************************************/
+  function toggleEnlargeVideo(videoElement) {
+    if (videoElement.classList.contains("enlarged")) {
+      videoElement.classList.remove("enlarged");
+    } else {
+      // Remove 'enlarged' class from any other videos
+      const allVideos = videoGrid.querySelectorAll("video");
+      allVideos.forEach((vid) => vid.classList.remove("enlarged"));
+
+      // Add 'enlarged' class to the clicked video
+      videoElement.classList.add("enlarged");
+    }
+  }
+
+  /************************************************
+   * Chat Functionality
+   ************************************************/
+  // Handle sending chat messages
+  sendChatBtn.onclick = () => {
+    const message = chatInput.value.trim();
+    if (message === "") return;
+
+    // Display the message in the chat area
+    appendChatMessage("You", message);
+
+    // Clear the input field
+    chatInput.value = "";
+  };
+
+  // Allow sending messages with Enter key
+  chatInput.addEventListener("keypress", (e) => {
+    if (e.key === "Enter") {
+      sendChatBtn.click();
+    }
+  });
+
+  function appendChatMessage(sender, message) {
+    const messageDiv = document.createElement("div");
+    messageDiv.classList.add("chat-message");
+
+    const senderSpan = document.createElement("span");
+    senderSpan.classList.add("chat-sender");
+    senderSpan.textContent = sender + ": ";
+
+    const messageSpan = document.createElement("span");
+    messageSpan.classList.add("chat-text");
+    messageSpan.textContent = message;
+
+    messageDiv.appendChild(senderSpan);
+    messageDiv.appendChild(messageSpan);
+    chatMessages.appendChild(messageDiv);
+
+    // Scroll to the bottom
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  }
+
+  // Optional: If you want to allow host to send messages to participants
+  // Implement PeerJS data connections here
 
   // ... [Rest of your existing code remains unchanged] ...
 });
