@@ -119,19 +119,45 @@ window.addEventListener("DOMContentLoaded", () => {
   /************************************************
    * Request Camera and Microphone Permissions
    ************************************************/
+  /************************************************
+   * Request Camera and Microphone Permissions
+   * - Detect mobile devices and customize constraints
+   ************************************************/
   async function requestMediaPermissions() {
-    try {
-      console.log("Requesting camera and microphone permissions.");
-      localStream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: true,
-      });
-      console.log("Media permissions granted.");
+    // Check if the user is on a mobile device
+    const isMobile =
+      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+        navigator.userAgent
+      );
 
-      // Log local stream details
-      console.log("[DEBUG] Local stream tracks:", localStream.getTracks());
-      localStream.getTracks().forEach((t) => {
-        console.log(`[DEBUG]  └─ Track kind="${t.kind}" enabled=${t.enabled}`);
+    // For mobile devices, specifically request the front-facing camera
+    // For desktop, just request a normal camera
+    const constraints = isMobile
+      ? {
+          video: {
+            facingMode: "user", // "user" = front cam, "environment" = rear cam
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
+          audio: true,
+        }
+      : {
+          video: true,
+          audio: true,
+        };
+
+    console.log("[DEBUG] getUserMedia constraints:", constraints);
+
+    try {
+      console.log("[DEBUG] Requesting camera and microphone permissions.");
+      localStream = await navigator.mediaDevices.getUserMedia(constraints);
+      console.log("[DEBUG] Media permissions granted.");
+
+      // Log track info for debugging
+      localStream.getTracks().forEach((track) => {
+        console.log(
+          `[DEBUG] local track kind="${track.kind}" enabled=${track.enabled}`
+        );
       });
 
       // Show local video
@@ -139,16 +165,16 @@ window.addEventListener("DOMContentLoaded", () => {
       localVideo.style.display = "block";
       localPoster.style.display = "none";
     } catch (err) {
-      console.warn("Camera/Microphone access denied or not available:", err);
+      console.warn("[DEBUG] Error accessing camera/microphone:", err);
       alert(
         "Unable to access camera/microphone. You can still join with audio only."
       );
-      showLocalPlaceholder();
+      showLocalPlaceholder(); // Show a placeholder instead of video
     }
 
     // If participant, attempt to call the host
     if (!isHost && roomParam && !hasCalledHost) {
-      console.log("Participant attempting to call host ID:", roomParam);
+      console.log("[DEBUG] Participant calling host ID:", roomParam);
       callHost(roomParam);
       hasCalledHost = true;
     }
