@@ -64,9 +64,7 @@ window.addEventListener("DOMContentLoaded", () => {
    * Initialize PeerJS
    ************************************************/
   function initializePeer() {
-    // Provide a config object with an API key or server details if needed:
-    // e.g., { host: 'your-peer-server.com', port: 443, secure: true, ... }
-    // If using a local PeerJS server, ensure it's running and properly reachable.
+    // Use the default PeerJS cloud server
     peer = new Peer({
       host: "0.peerjs.com",
       port: 443,
@@ -74,7 +72,7 @@ window.addEventListener("DOMContentLoaded", () => {
     });
 
     peer.on("open", (assignedID) => {
-      console.log("PeerJS connection opened. Assigned ID:", assignedID);
+      console.log("[DEBUG] PeerJS connection opened. Assigned ID:", assignedID);
       currentRoomId = assignedID;
 
       if (isHost) {
@@ -88,7 +86,7 @@ window.addEventListener("DOMContentLoaded", () => {
         meetingLinkSpan.textContent = newURL;
         meetingInfoBar.style.display = "flex";
 
-        console.log("Host URL updated with room ID:", newURL);
+        console.log("[DEBUG] Host URL updated with room ID:", newURL);
 
         // Show local placeholder letter (before camera starts)
         showLocalPlaceholder();
@@ -101,14 +99,14 @@ window.addEventListener("DOMContentLoaded", () => {
       }
     });
 
-    // OLD-STYLE INCOMING CALL LOGIC
+    // OLD-STYLE LOGIC FOR INCOMING CALLS
     peer.on("call", (incomingCall) => {
       console.log(
         "[DEBUG] Old-style logic: incoming call from:",
         incomingCall.peer
       );
 
-      // Always answer with localStream if we have it, or null if we never started the camera
+      // Always answer with localStream if we have it, or null if camera wasn't started
       incomingCall.answer(localStream || null);
 
       // Once we get the remote stream...
@@ -118,9 +116,11 @@ window.addEventListener("DOMContentLoaded", () => {
           incomingCall.peer
         );
 
-        // Check if the remote side has a video track
+        // Check if the remote side actually has a video track
         const hasVideo =
           remoteStream && remoteStream.getVideoTracks().length > 0;
+
+        console.log("[DEBUG] Remote hasVideo:", hasVideo);
 
         // Create (or reuse) a container in the videoGrid for this peer
         let participantDiv = document.querySelector(
@@ -142,15 +142,32 @@ window.addEventListener("DOMContentLoaded", () => {
           remoteVideo.srcObject = remoteStream;
           remoteVideo.autoplay = true;
           remoteVideo.playsInline = true;
+          remoteVideo.muted = true; // To allow autoplay on some browsers
+          remoteVideo.style.display = "block";
 
           remoteVideo.onloadedmetadata = () => {
             console.log(
               "[DEBUG] Remote video metadata loaded; attempting playback..."
             );
-            remoteVideo.play().catch((err) => {
-              console.error("[DEBUG] Remote video play error:", err);
-            });
+            remoteVideo
+              .play()
+              .then(() => {
+                console.log("[DEBUG] Remote video playback started.");
+                console.log(
+                  `[DEBUG] Remote video dimensions: width=${remoteVideo.videoWidth}, height=${remoteVideo.videoHeight}`
+                );
+              })
+              .catch((err) => {
+                console.error("[DEBUG] Remote video play error:", err);
+              });
           };
+
+          // Add an event listener to log video dimensions once the video starts playing
+          remoteVideo.addEventListener("playing", () => {
+            console.log(
+              `[DEBUG] Remote video is playing: width=${remoteVideo.videoWidth}, height=${remoteVideo.videoHeight}`
+            );
+          });
 
           participantDiv.appendChild(remoteVideo);
         } else {
@@ -271,80 +288,28 @@ window.addEventListener("DOMContentLoaded", () => {
       alert("Failed to join the meeting. Please try again.");
       return;
     }
-    handleIncomingCall(call);
-  }
 
-  /************************************************
-   * Handle Incoming Call (Both Host and Participant)
-   ************************************************/
-  function handleIncomingCall(call) {
-    console.log(`[DEBUG] handleIncomingCall: from peer="${call.peer}"`);
-
-    if (activePeers[call.peer]) {
-      console.warn(
-        `[DEBUG] Already connected to peer="${call.peer}". Closing duplicate call.`
+    // Handle events for this call
+    call.on("stream", (remoteStream) => {
+      console.log(
+        "[DEBUG] Participant's own call received remote stream:",
+        remoteStream
       );
-      call.close();
-      return;
-    }
+      // Not necessary for participant in a two-party call, but kept for completeness
+    });
+
+    call.on("error", (err) => {
+      console.error("[DEBUG] Participant call error:", err);
+      alert("Error during call: " + err);
+    });
+
+    call.on("close", () => {
+      console.log("[DEBUG] Participant call closed with host.");
+    });
 
     activeCalls.push(call);
-    activePeers[call.peer] = call;
-
-    call.once("stream", (remoteStream) => {
-      console.log(`[DEBUG] Received remote stream from peer="${call.peer}"`);
-      console.log("[DEBUG] Remote stream tracks:", remoteStream.getTracks());
-      remoteStream.getTracks().forEach((t) => {
-        console.log(`[DEBUG]  └─ Track kind="${t.kind}" enabled=${t.enabled}`);
-      });
-
-      // Now create a <video> or placeholder
-      const videoTracks = remoteStream.getVideoTracks();
-      console.log(`[DEBUG] Remote has ${videoTracks.length} video track(s).`);
-
-      const participantDiv = document.createElement("div");
-      participantDiv.classList.add("video-container");
-      participantDiv.setAttribute("data-peer-id", call.peer);
-
-      if (videoTracks.length > 0) {
-        const remoteVideo = document.createElement("video");
-        remoteVideo.autoplay = true;
-        remoteVideo.playsInline = true;
-        remoteVideo.srcObject = remoteStream;
-
-        remoteVideo.onloadedmetadata = () => {
-          console.log(
-            `[DEBUG] Remote video metadata loaded for peer="${call.peer}". Trying to play.`
-          );
-          remoteVideo.play().catch((err) => {
-            console.error("[DEBUG] Error playing remote video:", err);
-          });
-        };
-        participantDiv.appendChild(remoteVideo);
-      } else {
-        console.warn(
-          `[DEBUG] No video track. Displaying placeholder for peer="${call.peer}"`
-        );
-        const placeholder = document.createElement("div");
-        placeholder.classList.add("poster");
-        placeholder.textContent = getRandomLetter();
-        participantDiv.appendChild(placeholder);
-      }
-
-      videoGrid.appendChild(participantDiv);
-    });
-
-    call.once("error", (err) => {
-      console.error(`[DEBUG] Call error with peer="${call.peer}":`, err);
-    });
-
-    call.once("close", () => {
-      console.log(`[DEBUG] Call closed with peer="${call.peer}"`);
-      activeCalls = activeCalls.filter((c) => c !== call);
-      delete activePeers[call.peer];
-      removeParticipant(call.peer);
-    });
   }
+
   /************************************************
    * Remove Participant from UI
    ************************************************/
@@ -435,12 +400,22 @@ window.addEventListener("DOMContentLoaded", () => {
             console.log(
               `[DEBUG] Replacing track with enabled video for peer="${call.peer}".`
             );
-            sender.replaceTrack(videoTrack);
+            sender.replaceTrack(videoTrack).catch((err) => {
+              console.error(
+                `[DEBUG] Error replacing video track for peer="${call.peer}":`,
+                err
+              );
+            });
           } else {
             console.log(
               `[DEBUG] Removing video track for peer="${call.peer}".`
             );
-            sender.replaceTrack(null);
+            sender.replaceTrack(null).catch((err) => {
+              console.error(
+                `[DEBUG] Error removing video track for peer="${call.peer}":`,
+                err
+              );
+            });
           }
         }
       });
