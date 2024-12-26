@@ -118,7 +118,7 @@ window.addEventListener("DOMContentLoaded", () => {
         );
 
         // Handle remote stream (for audio routing)
-        handleRemoteStream(remoteStream);
+        handleRemoteStream(remoteStream, incomingCall.peer); // 🆕 Pass peer ID
 
         // Check if the remote side actually has a video track
         const hasVideo =
@@ -190,6 +190,7 @@ window.addEventListener("DOMContentLoaded", () => {
           incomingCall.peer
         );
         removeParticipant(incomingCall.peer);
+        removeRemoteAudio(incomingCall.peer); // 🆕 Remove corresponding audio
       });
 
       // Handle errors
@@ -197,6 +198,7 @@ window.addEventListener("DOMContentLoaded", () => {
         console.error("[DEBUG] Old-style logic: call error:", err);
         alert("Call error with peer " + incomingCall.peer + ": " + err);
         removeParticipant(incomingCall.peer);
+        removeRemoteAudio(incomingCall.peer); // 🆕 Remove corresponding audio
       });
     });
 
@@ -301,7 +303,7 @@ window.addEventListener("DOMContentLoaded", () => {
       );
 
       // Handle remote stream (for audio routing)
-      handleRemoteStream(remoteStream);
+      handleRemoteStream(remoteStream, call.peer); // 🆕 Pass peer ID
 
       // Check if the remote side actually has a video track
       const hasVideo = remoteStream && remoteStream.getVideoTracks().length > 0;
@@ -376,6 +378,7 @@ window.addEventListener("DOMContentLoaded", () => {
       console.log("[DEBUG] Participant call closed with host.");
       // Remove host video
       removeParticipant("host");
+      removeRemoteAudio("host"); // 🆕 Remove corresponding audio
     });
 
     activeCalls.push(call);
@@ -577,6 +580,14 @@ window.addEventListener("DOMContentLoaded", () => {
       localStream.getTracks().forEach((track) => track.stop());
     }
 
+    // Remove all remote audio elements
+    const audioElements = document.querySelectorAll("[id^='remoteAudio-']");
+    audioElements.forEach((audio) => {
+      console.log(`Removing audio element: ${audio.id}`);
+      audio.srcObject = null;
+      audio.remove();
+    });
+
     // Reload the page to go back to lobby
     location.href = location.origin + location.pathname;
   };
@@ -605,16 +616,24 @@ window.addEventListener("DOMContentLoaded", () => {
   /************************************************
    * Function to Handle Remote Stream and Audio Routing
    ************************************************/
-  async function handleRemoteStream(remoteStream) {
-    // Assign the remote stream to the audio element
-    remoteAudio.srcObject = remoteStream;
+  async function handleRemoteStream(remoteStream, peerId) {
+    // 🆕 Added peerId parameter
+    // Create a new audio element for each remote stream
+    const audio = document.createElement("audio");
+    audio.id = `remoteAudio-${peerId}`; // Unique ID for each audio element
+    audio.srcObject = remoteStream;
+    audio.autoplay = true;
+    audio.style.display = "none"; // Hide the audio element
+
+    // Append the audio element to the body
+    document.body.appendChild(audio);
 
     // Attempt to play the audio
     try {
-      await remoteAudio.play();
-      console.log("[DEBUG] Remote audio playback started.");
+      await audio.play();
+      console.log(`[DEBUG] Remote audio playback started for peer: ${peerId}`);
     } catch (err) {
-      console.error("[DEBUG] Remote audio play error:", err);
+      console.error(`[DEBUG] Remote audio play error for peer ${peerId}:`, err);
     }
 
     // Set audio output to speaker if on mobile
@@ -623,17 +642,33 @@ window.addEventListener("DOMContentLoaded", () => {
         navigator.userAgent
       );
     if (isMobile) {
-      await setAudioToSpeaker();
+      await setAudioToSpeaker(audio); // 🆕 Pass the specific audio element
+    }
+  }
+
+  /************************************************
+   * Function to Remove Remote Audio Element
+   ************************************************/
+  function removeRemoteAudio(peerId) {
+    // 🆕 Function to remove audio element
+    const audio = document.getElementById(`remoteAudio-${peerId}`);
+    if (audio) {
+      audio.srcObject = null;
+      audio.remove();
+      console.log(`[DEBUG] Removed audio element for peer: ${peerId}`);
+    } else {
+      console.warn(`[DEBUG] No audio element found for peer: ${peerId}`);
     }
   }
 
   /************************************************
    * Function to Set Audio Output to Speaker on Mobile
    ************************************************/
-  async function setAudioToSpeaker() {
-    if (typeof remoteAudio.setSinkId !== "undefined") {
+  async function setAudioToSpeaker(audioElement) {
+    // 🆕 Accept specific audio element
+    if (typeof audioElement.setSinkId !== "undefined") {
       try {
-        await remoteAudio.setSinkId("default");
+        await audioElement.setSinkId("default");
         console.log("[DEBUG] Audio output set to default speaker.");
       } catch (err) {
         console.error("[DEBUG] Failed to set audio output to speaker:", err);
