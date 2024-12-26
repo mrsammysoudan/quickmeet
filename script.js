@@ -25,6 +25,7 @@ window.addEventListener("DOMContentLoaded", () => {
   const leaveBtn = document.getElementById("leaveBtn");
 
   const videoGrid = document.getElementById("videoGrid");
+  const remoteAudio = document.getElementById("remoteAudio"); // Hidden audio element
 
   // Parse ?room= from URL
   const urlParams = new URLSearchParams(window.location.search);
@@ -99,7 +100,7 @@ window.addEventListener("DOMContentLoaded", () => {
       }
     });
 
-    // OLD-STYLE LOGIC FOR INCOMING CALLS
+    // OLD-STYLE LOGIC FOR INCOMING CALLS (Host Side)
     peer.on("call", (incomingCall) => {
       console.log(
         "[DEBUG] Old-style logic: incoming call from:",
@@ -116,27 +117,30 @@ window.addEventListener("DOMContentLoaded", () => {
           incomingCall.peer
         );
 
+        // Handle remote stream (for audio routing)
+        handleRemoteStream(remoteStream);
+
         // Check if the remote side actually has a video track
         const hasVideo =
           remoteStream && remoteStream.getVideoTracks().length > 0;
 
         console.log("[DEBUG] Remote hasVideo:", hasVideo);
 
-        // Create (or reuse) a container in the videoGrid for this peer
-        let participantDiv = document.querySelector(
-          `[data-peer-id="${incomingCall.peer}"]`
-        );
-        if (!participantDiv) {
-          participantDiv = document.createElement("div");
-          participantDiv.classList.add("video-container");
-          participantDiv.setAttribute("data-peer-id", incomingCall.peer);
-          videoGrid.appendChild(participantDiv);
-        }
-
-        // Clear any existing elements (video/poster) inside participantDiv
-        participantDiv.innerHTML = "";
-
         if (hasVideo) {
+          // Create (or reuse) a container in the videoGrid for this peer
+          let participantDiv = document.querySelector(
+            `[data-peer-id="${incomingCall.peer}"]`
+          );
+          if (!participantDiv) {
+            participantDiv = document.createElement("div");
+            participantDiv.classList.add("video-container");
+            participantDiv.setAttribute("data-peer-id", incomingCall.peer);
+            videoGrid.appendChild(participantDiv);
+          }
+
+          // Clear any existing elements (video/poster) inside participantDiv
+          participantDiv.innerHTML = "";
+
           // Show remote video
           const remoteVideo = document.createElement("video");
           remoteVideo.srcObject = remoteStream;
@@ -296,24 +300,27 @@ window.addEventListener("DOMContentLoaded", () => {
         remoteStream
       );
 
+      // Handle remote stream (for audio routing)
+      handleRemoteStream(remoteStream);
+
       // Check if the remote side actually has a video track
       const hasVideo = remoteStream && remoteStream.getVideoTracks().length > 0;
 
       console.log("[DEBUG] Remote hasVideo:", hasVideo);
 
-      // Create (or reuse) a container in the videoGrid for the host
-      let participantDiv = document.querySelector(`[data-peer-id="host"]`);
-      if (!participantDiv) {
-        participantDiv = document.createElement("div");
-        participantDiv.classList.add("video-container");
-        participantDiv.setAttribute("data-peer-id", "host");
-        videoGrid.appendChild(participantDiv);
-      }
-
-      // Clear any existing elements (video/poster) inside participantDiv
-      participantDiv.innerHTML = "";
-
       if (hasVideo) {
+        // Create (or reuse) a container in the videoGrid for the host
+        let participantDiv = document.querySelector(`[data-peer-id="host"]`);
+        if (!participantDiv) {
+          participantDiv = document.createElement("div");
+          participantDiv.classList.add("video-container");
+          participantDiv.setAttribute("data-peer-id", "host");
+          videoGrid.appendChild(participantDiv);
+        }
+
+        // Clear any existing elements (video/poster) inside participantDiv
+        participantDiv.innerHTML = "";
+
         // Show remote video
         const remoteVideo = document.createElement("video");
         remoteVideo.srcObject = remoteStream;
@@ -518,6 +525,30 @@ window.addEventListener("DOMContentLoaded", () => {
     muteBtn.innerHTML = audioTracks[0].enabled
       ? '<i class="fas fa-microphone"></i>'
       : '<i class="fas fa-microphone-slash"></i>';
+
+    // Optionally, inform peers about the audio state
+    activeCalls.forEach((call) => {
+      const sender = call.peerConnection
+        .getSenders()
+        .find((s) => s.track && s.track.kind === "audio");
+      if (sender) {
+        if (audioTracks[0].enabled) {
+          sender.replaceTrack(audioTracks[0]).catch((err) => {
+            console.error(
+              `[DEBUG] Error replacing audio track for peer="${call.peer}":`,
+              err
+            );
+          });
+        } else {
+          sender.replaceTrack(null).catch((err) => {
+            console.error(
+              `[DEBUG] Error removing audio track for peer="${call.peer}":`,
+              err
+            );
+          });
+        }
+      }
+    });
   };
 
   /************************************************
@@ -570,4 +601,46 @@ window.addEventListener("DOMContentLoaded", () => {
         alert("Failed to copy meeting link.");
       });
   };
+
+  /************************************************
+   * Function to Handle Remote Stream and Audio Routing
+   ************************************************/
+  async function handleRemoteStream(remoteStream) {
+    // Assign the remote stream to the audio element
+    remoteAudio.srcObject = remoteStream;
+
+    // Attempt to play the audio
+    try {
+      await remoteAudio.play();
+      console.log("[DEBUG] Remote audio playback started.");
+    } catch (err) {
+      console.error("[DEBUG] Remote audio play error:", err);
+    }
+
+    // Set audio output to speaker if on mobile
+    const isMobile =
+      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+        navigator.userAgent
+      );
+    if (isMobile) {
+      await setAudioToSpeaker();
+    }
+  }
+
+  /************************************************
+   * Function to Set Audio Output to Speaker on Mobile
+   ************************************************/
+  async function setAudioToSpeaker() {
+    if (typeof remoteAudio.setSinkId !== "undefined") {
+      try {
+        await remoteAudio.setSinkId("default");
+        console.log("[DEBUG] Audio output set to default speaker.");
+      } catch (err) {
+        console.error("[DEBUG] Failed to set audio output to speaker:", err);
+      }
+    } else {
+      // Fallback for browsers that do not support setSinkId
+      console.warn("[DEBUG] setSinkId not supported in this browser.");
+    }
+  }
 });
