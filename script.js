@@ -46,14 +46,17 @@ window.addEventListener("DOMContentLoaded", () => {
   let peer = null; // Our PeerJS instance
   let localStream = null; // Our local media stream
   let cameraVideoTrack = null; // Reference to the camera video track
+  let microphoneAudioTrack = null; // Reference to the microphone audio track
   let screenStream = null; // Reference to the screen sharing stream
   let screenVideoTrack = null; // Reference to the screen video track
+  let screenAudioTrack = null; // Reference to the screen audio track
   let activeCalls = []; // Keep track of active calls
   let isHost = null; // Determine if user is host
   let currentRoomId = null; // The room ID (host's PeerJS ID)
   let hasCalledHost = false; // Flag to prevent multiple call attempts
   const activePeers = {}; // Track active peers to prevent duplicates
   let isScreenSharing = false; // Flag to track screen sharing state
+  let currentAudioTrack = null; // Currently active audio track being sent
 
   // By default, show the lobby, hide the meeting
   lobbySection.style.display = "block";
@@ -299,6 +302,12 @@ window.addEventListener("DOMContentLoaded", () => {
       cameraVideoTrack = localStream.getVideoTracks()[0];
       console.log(
         `[DEBUG] Camera video track obtained: label=${cameraVideoTrack.label}, enabled=${cameraVideoTrack.enabled}`
+      );
+
+      // Store the microphone audio track
+      microphoneAudioTrack = localStream.getAudioTracks()[0];
+      console.log(
+        `[DEBUG] Microphone audio track obtained: label=${microphoneAudioTrack.label}, enabled=${microphoneAudioTrack.enabled}`
       );
 
       // Log track info for debugging
@@ -599,38 +608,33 @@ window.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    // Toggle the enabled state
-    audioTracks[0].enabled = !audioTracks[0].enabled;
-    console.log(`Audio track enabled: ${audioTracks[0].enabled}`);
+    // Toggle the enabled state of the current audio track
+    if (currentAudioTrack) {
+      currentAudioTrack.enabled = !currentAudioTrack.enabled;
+      console.log(`[DEBUG] Audio track enabled: ${currentAudioTrack.enabled}`);
 
-    // Update the mute button icon
-    muteBtn.innerHTML = audioTracks[0].enabled
-      ? '<i class="fas fa-microphone"></i>'
-      : '<i class="fas fa-microphone-slash"></i>';
+      // Update the mute button icon
+      muteBtn.innerHTML = currentAudioTrack.enabled
+        ? '<i class="fas fa-microphone"></i>'
+        : '<i class="fas fa-microphone-slash"></i>';
 
-    // Optionally, inform peers about the audio state
-    activeCalls.forEach((call) => {
-      const sender = call.peerConnection
-        .getSenders()
-        .find((s) => s.track && s.track.kind === "audio");
-      if (sender) {
-        if (audioTracks[0].enabled) {
-          sender.replaceTrack(audioTracks[0]).catch((err) => {
+      // Inform peers about the audio state
+      activeCalls.forEach((call) => {
+        const sender = call.peerConnection
+          .getSenders()
+          .find((s) => s.track && s.track.kind === "audio");
+        if (sender) {
+          sender.replaceTrack(currentAudioTrack).catch((err) => {
             console.error(
               `[DEBUG] Error replacing audio track for peer="${call.peer}":`,
               err
             );
           });
-        } else {
-          sender.replaceTrack(null).catch((err) => {
-            console.error(
-              `[DEBUG] Error removing audio track for peer="${call.peer}":`,
-              err
-            );
-          });
         }
-      }
-    });
+      });
+    } else {
+      console.warn("[DEBUG] No currentAudioTrack to toggle.");
+    }
   };
 
   /************************************************
@@ -665,7 +669,9 @@ window.addEventListener("DOMContentLoaded", () => {
       screenStream.getTracks().forEach((track) => track.stop());
       screenStream = null;
       screenVideoTrack = null;
+      screenAudioTrack = null;
       isScreenSharing = false;
+      currentAudioTrack = microphoneAudioTrack; // Reset to microphone
     }
 
     // Remove all remote audio elements
@@ -734,7 +740,7 @@ window.addEventListener("DOMContentLoaded", () => {
         navigator.userAgent
       );
     if (isMobile) {
-      await setAudioToSpeaker(audio); // Pass the specific audio element
+      await setAudioToSpeaker(audio); // 🆕 Pass the specific audio element
     }
   }
 
@@ -807,13 +813,31 @@ window.addEventListener("DOMContentLoaded", () => {
         `[DEBUG] Screen video track obtained: label=${screenVideoTrack.label}, enabled=${screenVideoTrack.enabled}`
       );
 
+      // Get the screen audio track if audio is shared
+      if (shareAudio) {
+        const audioTracks = screenStream.getAudioTracks();
+        if (audioTracks.length > 0) {
+          screenAudioTrack = audioTracks[0];
+          console.log(
+            `[DEBUG] Screen audio track obtained: label=${screenAudioTrack.label}, enabled=${screenAudioTrack.enabled}`
+          );
+          currentAudioTrack = screenAudioTrack; // Set current audio track to screen audio
+        } else {
+          console.warn(
+            "[DEBUG] No audio tracks found in screen stream despite requesting audio."
+          );
+        }
+      } else {
+        currentAudioTrack = microphoneAudioTrack; // Ensure currentAudioTrack is set to microphone
+      }
+
       // Replace video track in all active calls with screenVideoTrack
       activeCalls.forEach((call) => {
-        const sender = call.peerConnection
+        const videoSender = call.peerConnection
           .getSenders()
           .find((s) => s.track && s.track.kind === "video");
-        if (sender) {
-          sender
+        if (videoSender) {
+          videoSender
             .replaceTrack(screenVideoTrack)
             .then(() => {
               console.log(
@@ -826,6 +850,27 @@ window.addEventListener("DOMContentLoaded", () => {
                 err
               );
             });
+        }
+
+        if (shareAudio && screenAudioTrack) {
+          const audioSender = call.peerConnection
+            .getSenders()
+            .find((s) => s.track && s.track.kind === "audio");
+          if (audioSender) {
+            audioSender
+              .replaceTrack(screenAudioTrack)
+              .then(() => {
+                console.log(
+                  `[DEBUG] Replaced audio track with screen audio for peer="${call.peer}".`
+                );
+              })
+              .catch((err) => {
+                console.error(
+                  `[DEBUG] Error replacing audio track for peer="${call.peer}":`,
+                  err
+                );
+              });
+          }
         }
       });
 
@@ -883,11 +928,11 @@ window.addEventListener("DOMContentLoaded", () => {
 
       // Replace screenVideoTrack with cameraVideoTrack in all active calls
       activeCalls.forEach((call) => {
-        const sender = call.peerConnection
+        const videoSender = call.peerConnection
           .getSenders()
           .find((s) => s.track && s.track.kind === "video");
-        if (sender && cameraVideoTrack) {
-          sender
+        if (videoSender && cameraVideoTrack) {
+          videoSender
             .replaceTrack(cameraVideoTrack)
             .then(() => {
               console.log(
@@ -900,6 +945,27 @@ window.addEventListener("DOMContentLoaded", () => {
                 err
               );
             });
+        }
+
+        if (screenAudioTrack && microphoneAudioTrack) {
+          const audioSender = call.peerConnection
+            .getSenders()
+            .find((s) => s.track && s.track.kind === "audio");
+          if (audioSender) {
+            audioSender
+              .replaceTrack(microphoneAudioTrack)
+              .then(() => {
+                console.log(
+                  `[DEBUG] Replaced screen audio track with microphone track for peer="${call.peer}".`
+                );
+              })
+              .catch((err) => {
+                console.error(
+                  `[DEBUG] Error replacing microphone track for peer="${call.peer}":`,
+                  err
+                );
+              });
+          }
         }
       });
 
@@ -931,6 +997,7 @@ window.addEventListener("DOMContentLoaded", () => {
       // Clear screenStream and screenVideoTrack references
       screenStream = null;
       screenVideoTrack = null;
+      screenAudioTrack = null;
       console.log("[DEBUG] Cleared screen stream references.");
 
       // Change the Share Screen button icon back
@@ -942,6 +1009,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
       // Update screen sharing state
       isScreenSharing = false;
+      currentAudioTrack = microphoneAudioTrack; // Reset to microphone audio track
     } catch (err) {
       console.error("[DEBUG] Error stopping screen share:", err);
       alert("Failed to stop screen sharing.");
