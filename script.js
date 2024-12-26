@@ -28,7 +28,7 @@ window.addEventListener("DOMContentLoaded", () => {
   const leaveBtn = document.getElementById("leaveBtn");
 
   const videoGrid = document.getElementById("videoGrid");
-  const remoteAudio = document.getElementById("remoteAudio"); // Hidden audio element
+  const remoteAudioContainer = document.getElementById("remoteAudioContainer"); // Container for remote audios
 
   const shareScreenBtn = document.getElementById("shareScreenBtn"); // 🆕 Share Screen Button
 
@@ -220,6 +220,13 @@ window.addEventListener("DOMContentLoaded", () => {
             `[DEBUG] Displayed placeholder for participant ID: ${incomingCall.peer}`
           );
         }
+
+        // Add this call to activeCalls and activePeers
+        activeCalls.push(incomingCall);
+        activePeers[incomingCall.peer] = incomingCall;
+        console.log(
+          `[DEBUG] Added call with participant ID: ${incomingCall.peer} to activeCalls.`
+        );
       });
 
       // Cleanup if the call ends
@@ -304,11 +311,18 @@ window.addEventListener("DOMContentLoaded", () => {
       localVideo.srcObject = localStream;
       localVideo.style.display = "block";
       localPoster.style.display = "none";
+      console.log("[DEBUG] Local video displayed.");
 
       // Add click event to local video for enlargement
       localVideo.onclick = () => {
         toggleEnlargeVideo(localVideo);
       };
+
+      // If host, call all existing participants (if any)
+      if (isHost && currentRoomId) {
+        // Implement logic to handle existing participants if applicable
+        // For simplicity, assuming participants join after host starts
+      }
     } catch (err) {
       console.warn("[DEBUG] Error accessing camera/microphone:", err);
       alert(
@@ -430,10 +444,10 @@ window.addEventListener("DOMContentLoaded", () => {
         console.log(`[DEBUG] Displayed placeholder for host.`);
       }
 
-      // Optionally, add this peer to activePeers
-      activePeers["host"] = call;
+      // Add this call to activeCalls and activePeers
       activeCalls.push(call);
-      console.log(`[DEBUG] Added host call to activeCalls.`);
+      activePeers["host"] = call;
+      console.log(`[DEBUG] Added call with host to activeCalls.`);
     });
 
     call.on("error", (err) => {
@@ -659,7 +673,7 @@ window.addEventListener("DOMContentLoaded", () => {
     }
 
     // Remove all remote audio elements
-    const audioElements = document.querySelectorAll("[id^='remoteAudio-']");
+    const audioElements = remoteAudioContainer.querySelectorAll("audio");
     audioElements.forEach((audio) => {
       console.log(`Removing audio element: ${audio.id}`);
       audio.srcObject = null;
@@ -707,8 +721,8 @@ window.addEventListener("DOMContentLoaded", () => {
     audio.autoplay = true;
     audio.style.display = "none"; // Hide the audio element
 
-    // Append the audio element to the body
-    document.body.appendChild(audio);
+    // Append the audio element to the remoteAudioContainer
+    remoteAudioContainer.appendChild(audio);
     console.log(`[DEBUG] Added remote audio element for peer: ${peerId}`);
 
     // Attempt to play the audio
@@ -980,6 +994,9 @@ window.addEventListener("DOMContentLoaded", () => {
     appendChatMessage("You", message);
     console.log(`[DEBUG] Sent chat message: "${message}"`);
 
+    // Send the message to all connected peers
+    sendMessageToPeers(message);
+
     // Clear the input field
     chatInput.value = "";
   };
@@ -1013,5 +1030,102 @@ window.addEventListener("DOMContentLoaded", () => {
     chatMessages.scrollTop = chatMessages.scrollHeight;
   }
 
-  // ... [Rest of your existing code remains unchanged] ...
+  /************************************************
+   * Real-Time Chat Functionality (PeerJS Data Connections)
+   ************************************************/
+  // Initialize an object to hold data connections
+  const dataConnections = {};
+
+  /************************************************
+   * Establish Data Connections with Peers
+   ************************************************/
+  function establishDataConnection(peerId) {
+    if (dataConnections[peerId]) return; // Already connected
+
+    const conn = peer.connect(peerId);
+
+    conn.on("open", () => {
+      console.log(`[DEBUG] Data connection established with peer: ${peerId}`);
+    });
+
+    conn.on("data", (data) => {
+      console.log(`[DEBUG] Received message from ${peerId}: ${data}`);
+      appendChatMessage(`User ${peerId}`, data);
+    });
+
+    conn.on("close", () => {
+      console.log(`[DEBUG] Data connection closed with peer: ${peerId}`);
+      delete dataConnections[peerId];
+    });
+
+    conn.on("error", (err) => {
+      console.error(`[DEBUG] Data connection error with peer ${peerId}:`, err);
+      delete dataConnections[peerId];
+    });
+
+    dataConnections[peerId] = conn;
+  }
+
+  /************************************************
+   * Send Message to All Connected Peers
+   ************************************************/
+  function sendMessageToPeers(message) {
+    Object.values(dataConnections).forEach((conn) => {
+      if (conn.open) {
+        conn.send(message);
+        console.log(`[DEBUG] Sent message to peer: ${conn.peer}`);
+      }
+    });
+  }
+
+  /************************************************
+   * Handle Incoming Data Connections
+   ************************************************/
+  peer.on("connection", (conn) => {
+    console.log(`[DEBUG] Incoming data connection from peer: ${conn.peer}`);
+    establishDataConnection(conn.peer);
+  });
+
+  /************************************************
+   * Send Data Connections to All Active Peers
+   ************************************************/
+  function connectDataToPeers() {
+    activeCalls.forEach((call) => {
+      if (!dataConnections[call.peer]) {
+        establishDataConnection(call.peer);
+      }
+    });
+  }
+
+  /************************************************
+   * Share Screen Button Enhancements
+   ************************************************/
+  // Ensure that data connections are established when new calls are made
+  peer.on("call", (call) => {
+    // Once a new call is established, connect data
+    connectDataToPeers();
+  });
+
+  /************************************************
+   * Final Initialization After All Setups
+   ************************************************/
+  // After setting up PeerJS and media streams, ensure data connections
+  if (isHost) {
+    // For host, listen for new participants and establish data connections
+    // Assuming that participants will connect via PeerJS calls, data connections are handled in 'call' events
+  } else {
+    // For participants, establish data connections after calling the host
+    if (roomParam) {
+      peer.on("open", () => {
+        establishDataConnection(roomParam);
+      });
+    }
+  }
+
+  // Additional Cleanup: Remove screen sharing state when leaving
+  window.addEventListener("beforeunload", () => {
+    if (screenStream) {
+      screenStream.getTracks().forEach((track) => track.stop());
+    }
+  });
 });
