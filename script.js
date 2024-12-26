@@ -685,6 +685,7 @@ window.addEventListener("DOMContentLoaded", () => {
    * Share Screen Button
    ************************************************/
   shareScreenBtn.onclick = async () => {
+    // 🆕 Add event listener
     if (!localStream) {
       alert("Please start your camera before sharing your screen.");
       return;
@@ -703,30 +704,65 @@ window.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
+    // Prompt the user to include audio
+    const shareAudio = confirm(
+      "Do you want to share your system audio? Click 'OK' to include audio, or 'Cancel' to share without audio."
+    );
+
     try {
       // Capture the screen with optional audio
       const screenStream = await navigator.mediaDevices.getDisplayMedia({
         video: true,
-        audio: false,
+        audio: shareAudio,
       });
 
+      // Get the screen video track
       const screenVideoTrack = screenStream.getVideoTracks()[0];
 
-      // Replace the current video track in the PeerJS connection
-      const sender = getVideoSender();
-      if (sender) {
-        await sender.replaceTrack(screenVideoTrack);
-        console.log("[DEBUG] Replaced video track with screen share track.");
-      }
+      // 🛠️ **Fix Start Here**: Replace video track for **ALL** active calls
+      activeCalls.forEach((call) => {
+        const sender = call.peerConnection
+          .getSenders()
+          .find((s) => s.track && s.track.kind === "video");
+        if (sender) {
+          sender
+            .replaceTrack(screenVideoTrack)
+            .then(() => {
+              console.log(
+                `[DEBUG] Replaced video track with screen share for peer="${call.peer}".`
+              );
+            })
+            .catch((err) => {
+              console.error(
+                `[DEBUG] Error replacing video track for peer="${call.peer}":`,
+                err
+              );
+            });
+        }
+      });
+      // 🛠️ **Fix End Here**
 
-      // Update local video element to display the screen
+      // Update the local video element to display the screen
       localVideo.srcObject = screenStream;
 
+      // Add the 'screen-sharing' class to enlarge the shared screen
+      const localBlock = document.getElementById("localBlock");
+      localBlock.classList.add("screen-sharing");
+      console.log(
+        "[DEBUG] Added 'screen-sharing' class to local video container."
+      );
+
+      // Add 'screen-sharing-active' class to video grid to adjust layout
+      videoGrid.classList.add("screen-sharing-active");
+      console.log("[DEBUG] Added 'screen-sharing-active' class to video grid.");
+
+      // Listen for the end of screen sharing
       screenVideoTrack.onended = () => {
         console.log("[DEBUG] Screen sharing ended.");
         stopScreenShare();
       };
 
+      // Change the Share Screen button icon to indicate active sharing
       shareScreenBtn.innerHTML = '<i class="fas fa-stop"></i>';
       shareScreenBtn.title = "Stop Sharing";
     } catch (err) {
@@ -744,12 +780,28 @@ window.addEventListener("DOMContentLoaded", () => {
       // Get the camera video track
       const cameraVideoTrack = localStream.getVideoTracks()[0];
 
-      // Replace the screen video track with the camera track
-      const sender = getVideoSender();
-      if (sender) {
-        await sender.replaceTrack(cameraVideoTrack);
-        console.log("[DEBUG] Replaced screen share track with camera track.");
-      }
+      // 🛠️ **Fix Start Here**: Replace video track for **ALL** active calls
+      activeCalls.forEach((call) => {
+        const sender = call.peerConnection
+          .getSenders()
+          .find((s) => s.track && s.track.kind === "video");
+        if (sender) {
+          sender
+            .replaceTrack(cameraVideoTrack)
+            .then(() => {
+              console.log(
+                `[DEBUG] Replaced screen share track with camera track for peer="${call.peer}".`
+              );
+            })
+            .catch((err) => {
+              console.error(
+                `[DEBUG] Error replacing camera track for peer="${call.peer}":`,
+                err
+              );
+            });
+        }
+      });
+      // 🛠️ **Fix End Here**
 
       // Update the local video element to display the camera
       localVideo.srcObject = localStream;
@@ -780,14 +832,17 @@ window.addEventListener("DOMContentLoaded", () => {
    * Helper Function to Get Video Sender
    ************************************************/
   function getVideoSender() {
-    // 🆕 Helper to find the video sender in active calls
-    for (let call of activeCalls) {
-      let sender = call.peerConnection
+    // 🆕 Modified to return **all** video senders instead of just one
+    const senders = [];
+    activeCalls.forEach((call) => {
+      const sender = call.peerConnection
         .getSenders()
         .find((s) => s.track && s.track.kind === "video");
-      if (sender) return sender;
-    }
-    return null;
+      if (sender) {
+        senders.push(sender);
+      }
+    });
+    return senders;
   }
 
   // ... [Rest of your existing code remains unchanged] ...
