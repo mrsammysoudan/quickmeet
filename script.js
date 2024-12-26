@@ -310,6 +310,12 @@ window.addEventListener("DOMContentLoaded", () => {
         `[DEBUG] Microphone audio track obtained: label=${microphoneAudioTrack.label}, enabled=${microphoneAudioTrack.enabled}`
       );
 
+      // Initialize currentAudioTrack to microphoneAudioTrack
+      currentAudioTrack = microphoneAudioTrack;
+      console.log(
+        `[DEBUG] Initialized currentAudioTrack to microphoneAudioTrack.`
+      );
+
       // Log track info for debugging
       localStream.getTracks().forEach((track) => {
         console.log(
@@ -1010,6 +1016,7 @@ window.addEventListener("DOMContentLoaded", () => {
       // Update screen sharing state
       isScreenSharing = false;
       currentAudioTrack = microphoneAudioTrack; // Reset to microphone audio track
+      console.log(`[DEBUG] Set currentAudioTrack to microphoneAudioTrack.`);
     } catch (err) {
       console.error("[DEBUG] Error stopping screen share:", err);
       alert("Failed to stop screen sharing.");
