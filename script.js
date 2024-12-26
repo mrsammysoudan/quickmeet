@@ -129,7 +129,7 @@ window.addEventListener("DOMContentLoaded", () => {
         );
 
         // Handle remote stream (for audio routing)
-        handleRemoteStream(remoteStream, incomingCall.peer); // 🆕 Pass peer ID
+        handleRemoteStream(remoteStream, incomingCall.peer); // 🆕
 
         // Check if the remote side actually has a video track
         const hasVideo =
@@ -279,6 +279,11 @@ window.addEventListener("DOMContentLoaded", () => {
       localVideo.srcObject = localStream;
       localVideo.style.display = "block";
       localPoster.style.display = "none";
+
+      // Add click event to local video for enlargement
+      localVideo.onclick = () => {
+        toggleEnlargeVideo(localVideo);
+      };
     } catch (err) {
       console.warn("[DEBUG] Error accessing camera/microphone:", err);
       alert(
@@ -300,7 +305,8 @@ window.addEventListener("DOMContentLoaded", () => {
    ************************************************/
   function showMeetingUI() {
     lobbySection.style.display = "none";
-    meetingSection.style.display = "flex"; // Changed to flex for layout
+    meetingSection.style.display = "flex"; // Ensure meetingSection is displayed as flex
+    chatContainer.style.display = "flex"; // Ensure chatContainer is displayed
     console.log("Switched to meeting UI.");
   }
 
@@ -325,7 +331,7 @@ window.addEventListener("DOMContentLoaded", () => {
       );
 
       // Handle remote stream (for audio routing)
-      handleRemoteStream(remoteStream, call.peer); // 🆕 Pass peer ID
+      handleRemoteStream(remoteStream, call.peer); // 🆕
 
       // Check if the remote side actually has a video track
       const hasVideo = remoteStream && remoteStream.getVideoTracks().length > 0;
@@ -936,9 +942,6 @@ window.addEventListener("DOMContentLoaded", () => {
     // Scroll to the bottom
     chatMessages.scrollTop = chatMessages.scrollHeight;
   }
-
-  // Optional: If you want to allow host to send messages to participants
-  // Implement PeerJS data connections here
 
   // ... [Rest of your existing code remains unchanged] ...
 });
