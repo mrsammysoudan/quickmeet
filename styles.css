@@ -183,16 +183,14 @@ main {
  * SCREEN SHARING MODIFICATIONS
  ****************************************************/
 
-/* 🆕 Updated Screen Sharing Class for a Big Square */
 .screen-sharing {
   grid-column: 1 / -1; /* Span all columns */
   grid-row: 1 / -1; /* Span all rows */
   z-index: 10; /* Ensure it appears on top */
   position: relative;
-  width: 80%; /* Adjust to fit your desired size */
-  max-width: 1080px; /* Cap the width to match the aspect ratio */
-  aspect-ratio: 16 / 9; /* Enforce the 16:9 aspect ratio */
-  margin: 0 auto; /* Center horizontally */
+  width: 100%; /* Full width */
+  height: 100vh; /* Full height of the viewport */
+  margin: 0 auto; /* Center horizontally if needed */
 }
 
 .screen-sharing video {
@@ -201,9 +199,9 @@ main {
   left: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover; /* Ensures the video scales and crops appropriately */
-  border-radius: 8px; /* Optional rounded corners */
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Subtle shadow for elevation */
+  object-fit: contain; /* Ensure the entire screen is visible */
+  border-radius: 0; /* No rounded corners to maximize view area */
+  box-shadow: none; /* Optional: remove shadows for full screen appearance */
 }
 
 /* 🆕 Added Condition for Screen Sharing Active */
