@@ -685,7 +685,6 @@ window.addEventListener("DOMContentLoaded", () => {
    * Share Screen Button
    ************************************************/
   shareScreenBtn.onclick = async () => {
-    // 🆕 Add event listener
     if (!localStream) {
       alert("Please start your camera before sharing your screen.");
       return;
@@ -704,49 +703,30 @@ window.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    // Prompt the user to include audio
-    const shareAudio = confirm(
-      "Do you want to share your system audio? Click 'OK' to include audio, or 'Cancel' to share without audio."
-    );
-
     try {
       // Capture the screen with optional audio
       const screenStream = await navigator.mediaDevices.getDisplayMedia({
         video: true,
-        audio: shareAudio,
+        audio: false,
       });
 
-      // Get the screen video track
       const screenVideoTrack = screenStream.getVideoTracks()[0];
 
-      // Replace the current video track in localStream with the screen track
+      // Replace the current video track in the PeerJS connection
       const sender = getVideoSender();
       if (sender) {
         await sender.replaceTrack(screenVideoTrack);
         console.log("[DEBUG] Replaced video track with screen share track.");
       }
 
-      // Update the local video element to display the screen
+      // Update local video element to display the screen
       localVideo.srcObject = screenStream;
 
-      // Add the 'screen-sharing' class to enlarge the shared screen
-      const localBlock = document.getElementById("localBlock");
-      localBlock.classList.add("screen-sharing");
-      console.log(
-        "[DEBUG] Added 'screen-sharing' class to local video container."
-      );
-
-      // Add 'screen-sharing-active' class to video grid to adjust layout
-      videoGrid.classList.add("screen-sharing-active");
-      console.log("[DEBUG] Added 'screen-sharing-active' class to video grid.");
-
-      // Listen for the end of screen sharing
       screenVideoTrack.onended = () => {
         console.log("[DEBUG] Screen sharing ended.");
         stopScreenShare();
       };
 
-      // Change the Share Screen button icon to indicate active sharing
       shareScreenBtn.innerHTML = '<i class="fas fa-stop"></i>';
       shareScreenBtn.title = "Stop Sharing";
     } catch (err) {
